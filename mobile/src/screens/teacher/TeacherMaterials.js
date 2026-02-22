@@ -172,7 +172,7 @@ const TeacherMaterials = () => {
                         <TextInput style={styles.input} value={formData.title} onChangeText={t => setFormData({ ...formData, title: t })} placeholder="e.g. Algorithms Lecture Notes" />
 
                         <Text style={styles.label}>Description</Text>
-                        <TextInput style={[styles.input, { height: 80 }]} value={formData.description} onChangeText={t => setFormData({ ...formData, description: t })} placeholder="Optional details..." multiline />
+                        <TextInput style={[styles.input, { height: 80 }]} value={formData.description} onChangeText={t => setFormData({ ...formData, description: t })} placeholder="Optional details..." multiline={true} />
 
                         <Text style={styles.label}>Subject</Text>
                         <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.chipScroll}>

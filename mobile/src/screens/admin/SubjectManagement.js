@@ -108,7 +108,7 @@ const SubjectManagement = () => {
                 />
             )}
 
-            <Modal visible={showModal} animationType="slide">
+            <Modal visible={showModal} animationType="slide" transparent={false}>
                 <View style={styles.modal}>
                     <View style={styles.mHeader}>
                         <Text style={styles.mTitle}>{editingSubject ? 'Edit' : 'Add'} Subject</Text>

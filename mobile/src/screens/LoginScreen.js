@@ -193,7 +193,7 @@ const LoginScreen = ({ navigation }) => {
                                         style={styles.input}
                                         placeholder="••••••••"
                                         placeholderTextColor="#94a3b8"
-                                        secureTextEntry
+                                        secureTextEntry={true}
                                         value={formData.password}
                                         onChangeText={(text) => setFormData({ ...formData, password: text })}
                                     />

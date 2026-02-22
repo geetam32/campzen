@@ -117,7 +117,7 @@ const StudentConcerns = () => {
                 />
             )}
 
-            <Modal visible={showModal} animationType="slide">
+            <Modal visible={showModal} animationType="slide" transparent={false}>
                 <View style={styles.modal}>
                     <View style={styles.mHeader}>
                         <Text style={styles.mTitle}>New Report</Text>
@@ -139,7 +139,7 @@ const StudentConcerns = () => {
                         <TextInput style={styles.input} value={formData.reported_pin} onChangeText={t => setFormData({ ...formData, reported_pin: t })} placeholder="e.g. 21001" />
 
                         <Text style={styles.label}>Detailed Description</Text>
-                        <TextInput style={[styles.input, { height: 120 }]} value={formData.description} onChangeText={t => setFormData({ ...formData, description: t })} placeholder="Explain the situation..." multiline textAlignVertical="top" />
+                        <TextInput style={[styles.input, { height: 120 }]} value={formData.description} onChangeText={t => setFormData({ ...formData, description: t })} placeholder="Explain the situation..." multiline={true} textAlignVertical="top" />
 
                         <View style={styles.switchRow}>
                             <View>
@@ -149,7 +149,7 @@ const StudentConcerns = () => {
                             <Switch
                                 value={!!formData.anonymous}
                                 onValueChange={v => setFormData({ ...formData, anonymous: v })}
-                                trackColor={{ false: '#e2e8f0', true: '#6366f1' }}
+                                trackColor={{ "false": '#e2e8f0', "true": '#6366f1' }}
                                 thumbColor="#fff"
                             />
                         </View>

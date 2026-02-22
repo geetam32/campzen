@@ -179,7 +179,7 @@ const TeacherManagement = () => {
                         <TextInput style={styles.input} value={formData.email} onChangeText={t => setFormData({ ...formData, email: t })} placeholder="e.g. smith@edu.in" keyboardType="email-address" autoCapitalize="none" />
 
                         <Text style={styles.label}>Password {editingTeacher && "(Optional)"}</Text>
-                        <TextInput style={styles.input} value={formData.password} onChangeText={t => setFormData({ ...formData, password: t })} placeholder="Login password" secureTextEntry />
+                        <TextInput style={styles.input} value={formData.password} onChangeText={t => setFormData({ ...formData, password: t })} placeholder="Login password" secureTextEntry={true} />
 
                         <View style={styles.divider} />
 
@@ -188,7 +188,7 @@ const TeacherManagement = () => {
                             <Switch
                                 value={!!formData.is_class_teacher}
                                 onValueChange={v => setFormData({ ...formData, is_class_teacher: v })}
-                                trackColor={{ false: '#e2e8f0', true: '#10b981' }}
+                                trackColor={{ "false": '#e2e8f0', "true": '#10b981' }}
                                 thumbColor="#fff"
                             />
                         </View>
@@ -210,14 +210,14 @@ const TeacherManagement = () => {
 
                         {formData.subject_assignments.map((asgn, i) => (
                             <View key={i} style={styles.asgnRow}>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.miniChipScroll}>
+                                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.miniChipScroll}>
                                     {subjects.map(s => (
                                         <TouchableOpacity key={s.id} style={[styles.miniChip, asgn.subject_id === s.id && styles.activeMiniChip]} onPress={() => upAsgn(i, 'subject_id', s.id)}>
                                             <Text style={[styles.miniChipText, asgn.subject_id === s.id && styles.activeMiniChipText]}>{s.code}</Text>
                                         </TouchableOpacity>
                                     ))}
                                 </ScrollView>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.miniChipScroll}>
+                                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.miniChipScroll}>
                                     {classes.map(c => (
                                         <TouchableOpacity key={c.id} style={[styles.miniChip, asgn.class_id === c.id && styles.activeMiniChip]} onPress={() => upAsgn(i, 'class_id', c.id)}>
                                             <Text style={[styles.miniChipText, asgn.class_id === c.id && styles.activeMiniChipText]}>{c.branch}-{c.section}</Text>

@@ -212,7 +212,7 @@ const TeacherNotices = () => {
                         {formData.target_type === 'class' && (
                             <>
                                 <Text style={styles.label}>Target Class</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+                                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.chipRow}>
                                     {classes.map(c => (
                                         <TouchableOpacity key={c.id} style={[styles.chip, formData.target_class_id === c.id && styles.activeChip]} onPress={() => setFormData({ ...formData, target_class_id: c.id })}>
                                             <Text style={[styles.chipText, formData.target_class_id === c.id && styles.activeChipText]}>{c.branch} - {c.section}</Text>

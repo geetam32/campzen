@@ -195,7 +195,7 @@ const StudentManagement = () => {
                         {!editingStudent && (
                             <>
                                 <Text style={styles.label}>Default Password</Text>
-                                <TextInput style={styles.input} value={formData.password} onChangeText={t => setFormData({ ...formData, password: t })} placeholder="Initial password..." secureTextEntry />
+                                <TextInput style={styles.input} value={formData.password} onChangeText={t => setFormData({ ...formData, password: t })} placeholder="Initial password..." secureTextEntry={true} />
                             </>
                         )}
                     </ScrollView>
