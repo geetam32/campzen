@@ -145,7 +145,7 @@ const StudentManagement = () => {
                     <Search size={18} color="#94a3b8" />
                     <TextInput style={styles.searchInput} placeholder="Search name/PIN..." value={searchTerm} onChangeText={setSearchTerm} />
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.classScroll}>
+                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.classScroll}>
                     <TouchableOpacity style={[styles.classChip, selectedClass === 'all' && styles.activeChip]} onPress={() => setSelectedClass('all')}>
                         <Text style={[styles.chipText, selectedClass === 'all' && styles.activeChipText]}>ALL</Text>
                     </TouchableOpacity>
@@ -167,7 +167,7 @@ const StudentManagement = () => {
                 />
             )}
 
-            <Modal visible={showModal} animationType="slide">
+            <Modal visible={showModal} animationType="slide" transparent={false}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                     <View style={styles.mHeader}>
                         <Text style={styles.mTitle}>{editingStudent ? 'Edit' : 'Add'} Student</Text>
@@ -181,7 +181,7 @@ const StudentManagement = () => {
                         <TextInput style={styles.input} value={formData.name} onChangeText={t => setFormData({ ...formData, name: t })} placeholder="e.g. John Doe" />
 
                         <Text style={styles.label}>Class</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+                        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.chipRow}>
                             {classes.map(c => (
                                 <TouchableOpacity key={c.id} style={[styles.chip, formData.class_id === c.id && styles.activeChip]} onPress={() => setFormData({ ...formData, class_id: c.id })}>
                                     <Text style={[styles.chipText, formData.class_id === c.id && styles.activeChipText]}>{c.branch} - {c.section}</Text>

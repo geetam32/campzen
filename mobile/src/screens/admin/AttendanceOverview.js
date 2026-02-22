@@ -95,7 +95,7 @@ const AttendanceOverview = () => {
             </View>
 
             <View style={styles.filterSection}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.classScroll}>
+                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.classScroll}>
                     <TouchableOpacity style={[styles.classChip, selectedClass === '' && styles.activeChip]} onPress={() => setSelectedClass('')}>
                         <Text style={[styles.chipText, selectedClass === '' && styles.activeChipText]}>ALL CLASSES</Text>
                     </TouchableOpacity>

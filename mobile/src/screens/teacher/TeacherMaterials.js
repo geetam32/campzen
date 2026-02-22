@@ -161,7 +161,7 @@ const TeacherMaterials = () => {
                 />
             )}
 
-            <Modal visible={showModal} animationType="slide">
+            <Modal visible={showModal} animationType="slide" transparent={false}>
                 <View style={styles.modalView}>
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>{editingMaterial ? 'Edit' : 'Upload'} Material</Text>
@@ -175,7 +175,7 @@ const TeacherMaterials = () => {
                         <TextInput style={[styles.input, { height: 80 }]} value={formData.description} onChangeText={t => setFormData({ ...formData, description: t })} placeholder="Optional details..." multiline />
 
                         <Text style={styles.label}>Subject</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
                             {subjects.map(s => (
                                 <TouchableOpacity key={s.id} style={[styles.chip, formData.subject === s.name && styles.activeChip]} onPress={() => setFormData({ ...formData, subject: s.name })}>
                                     <Text style={[styles.chipText, formData.subject === s.name && styles.activeChipText]}>{s.name}</Text>
@@ -184,7 +184,7 @@ const TeacherMaterials = () => {
                         </ScrollView>
 
                         <Text style={styles.label}>Target Class</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
                             {classes.map(c => (
                                 <TouchableOpacity key={c.id} style={[styles.chip, formData.class_id === c.id && styles.activeChip]} onPress={() => setFormData({ ...formData, class_id: c.id })}>
                                     <Text style={[styles.chipText, formData.class_id === c.id && styles.activeChipText]}>{c.branch} - {c.section}</Text>
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     label: { fontSize: 13, fontWeight: 'bold', color: '#64748b', marginBottom: 8, marginTop: 16 },
     input: { backgroundColor: '#f8fafc', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0' },
     chipScroll: { marginBottom: 4 },
-    chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, backgroundColor: '#f1f5f9', marginRight: 8, borderBorderWidth: 1, borderColor: 'transparent' },
+    chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, backgroundColor: '#f1f5f9', marginRight: 8, borderWidth: 1, borderColor: 'transparent' },
     activeChip: { backgroundColor: '#eef2ff', borderColor: '#6366f1' },
     chipText: { fontSize: 12, color: '#64748b', fontWeight: '500' },
     activeChipText: { color: '#6366f1', fontWeight: 'bold' },

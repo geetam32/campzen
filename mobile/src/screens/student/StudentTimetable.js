@@ -61,7 +61,7 @@ const StudentTimetable = () => {
             </View>
 
             <View style={styles.dayPicker}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayPickerContent}>
+                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayPickerContent}>
                     {days.map(day => (
                         <TouchableOpacity
                             key={day}

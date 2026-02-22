@@ -152,7 +152,7 @@ const ClassManagement = () => {
                 />
             )}
 
-            <Modal visible={showModal} animationType="slide">
+            <Modal visible={showModal} animationType="slide" transparent={false}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                     <View style={styles.mHeader}>
                         <Text style={styles.mTitle}>{editingClass ? 'Edit' : 'Add'} Class</Text>
@@ -165,7 +165,7 @@ const ClassManagement = () => {
                         <View style={styles.row}>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.label}>Year</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.miniChipScroll}>
+                                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.miniChipScroll}>
                                     {yearOptions.map(y => (
                                         <TouchableOpacity key={y.value} style={[styles.miniChip, formData.year === y.value && styles.activeMiniChip]} onPress={() => setFormData({ ...formData, year: y.value })}>
                                             <Text style={[styles.miniChipText, formData.year === y.value && styles.activeMiniChipText]}>{y.label}</Text>

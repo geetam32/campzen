@@ -128,17 +128,17 @@ const StudentAttendance = ({ navigation }) => {
                 <View style={styles.circularChartBox}>
                     <Svg width={180} height={180} viewBox="0 0 36 36">
                         <Circle
-                            cx="18"
-                            cy="18"
-                            r="15"
+                            cx={18}
+                            cy={18}
+                            r={15}
                             fill="none"
                             stroke="#f1f5f9"
                             strokeWidth={3}
                         />
                         <Circle
-                            cx="18"
-                            cy="18"
-                            r="15"
+                            cx={18}
+                            cy={18}
+                            r={15}
                             fill="none"
                             stroke={animatedPercentage >= 75 ? '#10b981' : '#ef4444'}
                             strokeWidth={3}

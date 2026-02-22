@@ -177,7 +177,7 @@ const TeacherNotices = () => {
                 />
             )}
 
-            <Modal visible={showModal} animationType="slide">
+            <Modal visible={showModal} animationType="slide" transparent={false}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>{editingNotice ? 'Edit' : 'Post'} Notice</Text>
@@ -197,7 +197,7 @@ const TeacherNotices = () => {
                         </View>
 
                         <Text style={styles.label}>Content</Text>
-                        <TextInput style={[styles.input, { height: 120 }]} value={formData.content} onChangeText={t => setFormData({ ...formData, content: t })} placeholder="Enter notice details..." multiline textAlignVertical="top" />
+                        <TextInput style={[styles.input, { height: 120 }]} value={formData.content} onChangeText={t => setFormData({ ...formData, content: t })} placeholder="Enter notice details..." multiline={true} textAlignVertical="top" />
 
                         <Text style={styles.label}>Target Range</Text>
                         <View style={styles.typeRow}>

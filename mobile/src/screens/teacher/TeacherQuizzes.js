@@ -222,7 +222,7 @@ const TeacherQuizzes = () => {
                 />
             )}
 
-            <Modal visible={showModal} animationType="slide">
+            <Modal visible={showModal} animationType="slide" transparent={false}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>{editingQuiz ? 'Edit Quiz' : 'Create Quiz'}</Text>
@@ -237,7 +237,7 @@ const TeacherQuizzes = () => {
                         <View style={styles.row}>
                             <View style={[styles.formGroup, { flex: 1 }]}>
                                 <Text style={styles.label}>Subject</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsRow}>
+                                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.chipsRow}>
                                     {subjects.map(s => (
                                         <TouchableOpacity
                                             key={s.id}
@@ -253,7 +253,7 @@ const TeacherQuizzes = () => {
 
                         <View style={styles.formGroup}>
                             <Text style={styles.label}>Target Class</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsRow}>
+                            <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.chipsRow}>
                                 {classes.map(c => (
                                     <TouchableOpacity
                                         key={c.id}
@@ -285,7 +285,7 @@ const TeacherQuizzes = () => {
                                     value={q.question}
                                     onChangeText={t => updateQuestion(qIdx, 'question', t)}
                                     placeholder="Enter question"
-                                    multiline
+                                    multiline={true}
                                 />
                                 {q.options.map((opt, optIdx) => (
                                     <View key={optIdx} style={styles.optRow}>

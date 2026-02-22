@@ -155,7 +155,7 @@ const AdminNotices = () => {
                 />
             )}
 
-            <Modal visible={showModal} animationType="slide">
+            <Modal visible={showModal} animationType="slide" transparent={false}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                     <View style={styles.mHeader}>
                         <Text style={styles.mTitle}>Broadcast Notice</Text>
@@ -175,7 +175,7 @@ const AdminNotices = () => {
                         </View>
 
                         <Text style={styles.label}>Message Body</Text>
-                        <TextInput style={[styles.input, styles.textArea]} value={formData.content} onChangeText={t => setFormData({ ...formData, content: t })} placeholder="Detailed explanation..." multiline numberOfLines={5} textAlignVertical="top" />
+                        <TextInput style={[styles.input, styles.textArea]} value={formData.content} onChangeText={t => setFormData({ ...formData, content: t })} placeholder="Detailed explanation..." multiline={true} numberOfLines={5} textAlignVertical="top" />
 
                         <Text style={styles.label}>Broadcast Range</Text>
                         <View style={styles.row}>
@@ -187,7 +187,7 @@ const AdminNotices = () => {
                         </View>
 
                         {formData.target_type === 'class' && (
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+                            <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.chipRow}>
                                 {classes.map(c => (
                                     <TouchableOpacity key={c.id} style={[styles.chip, formData.target_class_id === c.id && styles.activeChip]} onPress={() => setFormData({ ...formData, target_class_id: c.id })}>
                                         <Text style={[styles.chipText, formData.target_class_id === c.id && styles.activeChipText]}>{c.branch}-{c.section}</Text>

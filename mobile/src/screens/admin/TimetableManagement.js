@@ -148,7 +148,7 @@ const TimetableManagement = () => {
             </View>
 
             <View style={styles.classPicker}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
                     {classes.map(c => (
                         <TouchableOpacity key={c.id} style={[styles.classChip, selectedClass === c.id && styles.activeChip]} onPress={() => setSelectedClass(c.id)}>
                             <Text style={[styles.chipText, selectedClass === c.id && styles.activeChipText]}>{c.branch}-{c.section}</Text>
@@ -161,7 +161,7 @@ const TimetableManagement = () => {
                 <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
                     <View style={styles.subjectOverview}>
                         <Text style={styles.sectionTitle}>Allocation Status</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subScroll}>
+                        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subScroll}>
                             {assigned.map(s => (
                                 <View key={s.id} style={styles.subCard}>
                                     <Text style={styles.subCardName} numberOfLines={1}>{s.name}</Text>
@@ -204,7 +204,7 @@ const TimetableManagement = () => {
                 <View style={styles.emptyState}><Calendar size={60} color="#cbd5e1" /><Text style={styles.emptyText}>Select a class to manage timetable</Text></View>
             )}
 
-            <Modal visible={showPicker} animationType="slide" transparent>
+            <Modal visible={showPicker} animationType="slide" transparent={true}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.mHeader}>

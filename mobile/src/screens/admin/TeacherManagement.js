@@ -162,7 +162,7 @@ const TeacherManagement = () => {
                 />
             )}
 
-            <Modal visible={showModal} animationType="slide">
+            <Modal visible={showModal} animationType="slide" transparent={false}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                     <View style={styles.mHeader}>
                         <Text style={styles.mTitle}>{editingTeacher ? 'Edit' : 'Add'} Teacher</Text>
@@ -194,7 +194,7 @@ const TeacherManagement = () => {
                         </View>
 
                         {formData.is_class_teacher && (
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+                            <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.chipRow}>
                                 {classes.map(c => (
                                     <TouchableOpacity key={c.id} style={[styles.chip, formData.class_id_assigned === c.id && styles.activeChip]} onPress={() => setFormData({ ...formData, class_id_assigned: c.id })}>
                                         <Text style={[styles.chipText, formData.class_id_assigned === c.id && styles.activeChipText]}>{c.branch} - {c.section}</Text>

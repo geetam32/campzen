@@ -86,7 +86,7 @@ const ConcernsManagement = () => {
             </View>
 
             <View style={styles.filterSection}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterBar}>
+                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterBar}>
                     {['all', 'open', 'resolved', 'escalated'].map(s => (
                         <TouchableOpacity key={s} style={[styles.filterChip, filterStatus === s && styles.activeChip]} onPress={() => setFilterStatus(s)}>
                             <Text style={[styles.chipText, filterStatus === s && styles.activeChipText]}>{s.toUpperCase()}</Text>
@@ -107,7 +107,7 @@ const ConcernsManagement = () => {
                 />
             )}
 
-            <Modal visible={!!selectedConcern} animationType="slide" transparent>
+            <Modal visible={!!selectedConcern} animationType="slide" transparent={true}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.mHeader}>

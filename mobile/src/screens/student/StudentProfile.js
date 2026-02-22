@@ -129,7 +129,7 @@ const StudentProfile = () => {
                 </View>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={styles.tabBarContent}>
+            <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={styles.tabBarContent}>
                 {tabs.map(tab => (
                     <TouchableOpacity key={tab.id} style={[styles.tab, activeTab === tab.id && styles.activeTab]} onPress={() => setActiveTab(tab.id)}>
                         <tab.icon size={16} color={activeTab === tab.id ? '#6366f1' : '#64748b'} />
@@ -173,7 +173,7 @@ const SettingItem = ({ title, desc, toggle, danger }) => (
             <Text style={[styles.settingTitle, danger && { color: '#ef4444' }]}>{title}</Text>
             <Text style={styles.settingDesc}>{desc}</Text>
         </View>
-        {toggle ? <Switch value={true} trackColor={{ false: '#e2e8f0', true: '#10b981' }} thumbColor="#fff" /> : <ChevronRight size={18} color="#cbd5e1" />}
+        {toggle ? <Switch value={true} trackColor={{ "false": '#e2e8f0', "true": '#10b981' }} thumbColor="#fff" /> : <ChevronRight size={18} color="#cbd5e1" />}
     </View>
 );
 

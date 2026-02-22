@@ -146,7 +146,7 @@ const AttendanceMarking = () => {
 
             <View style={styles.card}>
                 <Text style={styles.label}>Select Class</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.classPicker}>
+                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.classPicker}>
                     {classes.map(cls => (
                         <TouchableOpacity
                             key={cls.id}
@@ -166,7 +166,7 @@ const AttendanceMarking = () => {
                     <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={styles.label}>Period</Text>
                         <View style={styles.periodRow}>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
                                 {periods.map(p => (
                                     <TouchableOpacity
                                         key={p}
