@@ -188,7 +188,7 @@ const TeacherManagement = () => {
                             <Switch
                                 value={!!formData.is_class_teacher}
                                 onValueChange={v => setFormData({ ...formData, is_class_teacher: v })}
-                                trackColor={{ "false": '#e2e8f0', "true": '#10b981' }}
+                                trackColor={{ false: '#e2e8f0', true: '#10b981' }}
                                 thumbColor="#fff"
                             />
                         </View>

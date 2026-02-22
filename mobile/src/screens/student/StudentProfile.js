@@ -173,7 +173,7 @@ const SettingItem = ({ title, desc, toggle, danger }) => (
             <Text style={[styles.settingTitle, danger && { color: '#ef4444' }]}>{title}</Text>
             <Text style={styles.settingDesc}>{desc}</Text>
         </View>
-        {toggle ? <Switch value={true} trackColor={{ "false": '#e2e8f0', "true": '#10b981' }} thumbColor="#fff" /> : <ChevronRight size={18} color="#cbd5e1" />}
+        {toggle ? <Switch value={true} trackColor={{ false: '#e2e8f0', true: '#10b981' }} thumbColor="#fff" /> : <ChevronRight size={18} color="#cbd5e1" />}
     </View>
 );
 

@@ -149,7 +149,7 @@ const StudentConcerns = () => {
                             <Switch
                                 value={!!formData.anonymous}
                                 onValueChange={v => setFormData({ ...formData, anonymous: v })}
-                                trackColor={{ "false": '#e2e8f0', "true": '#6366f1' }}
+                                trackColor={{ false: '#e2e8f0', true: '#6366f1' }}
                                 thumbColor="#fff"
                             />
                         </View>
