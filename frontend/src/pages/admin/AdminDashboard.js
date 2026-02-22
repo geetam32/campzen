@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { db } from '../../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
-import { Users, GraduationCap, BookOpen, ClipboardCheck, Plus, Calendar, Settings } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, ClipboardCheck, Plus, Calendar, Settings, Bus } from 'lucide-react';
 
 const AdminDashboard = () => {
     const { userData } = useAuth();
@@ -139,6 +139,10 @@ const AdminDashboard = () => {
                     <Link to="/admin/assignments" className="btn btn-secondary">
                         <ClipboardCheck size={16} />
                         Assignment Repository
+                    </Link>
+                    <Link to="/admin/transport" className="btn btn-secondary">
+                        <Bus size={16} />
+                        Transport Management
                     </Link>
                 </div>
             </div>

@@ -1,0 +1,693 @@
+/* ================================================
+   CampZen – Live Bus Tracking Module Styles
+   ================================================ */
+
+/* ---------- Transport Management (Admin) ---------- */
+.transport-page {
+    padding: 0;
+}
+
+.transport-tabs {
+    display: flex;
+    gap: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+    padding: 6px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border-color);
+}
+
+.transport-tab {
+    flex: 1;
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.transport-tab:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.transport-tab.active {
+    background: var(--accent-primary);
+    color: #fff;
+    box-shadow: var(--shadow-md);
+}
+
+/* Module toggle */
+.module-toggle-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    box-shadow: var(--shadow-sm);
+}
+
+.module-toggle-info h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.module-toggle-info p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Toggle switch */
+.toggle-switch {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--border-color);
+    border-radius: 30px;
+    transition: all 0.3s ease;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 4px;
+    bottom: 4px;
+    background: #fff;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.toggle-switch input:checked+.toggle-slider {
+    background: var(--accent-success);
+}
+
+.toggle-switch input:checked+.toggle-slider::before {
+    transform: translateX(24px);
+}
+
+/* ---------- Bus / Driver Cards ---------- */
+.transport-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.transport-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 20px;
+    transition: all 0.25s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.transport-card:hover {
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.transport-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+
+.transport-card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.transport-card-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.transport-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.transport-card-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.transport-card-field svg {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.transport-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}
+
+.transport-card-actions .btn {
+    flex: 1;
+    font-size: 0.8rem;
+    padding: 8px 12px;
+}
+
+/* Status badge */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.active {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--accent-success);
+}
+
+.status-badge.inactive {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--accent-danger);
+}
+
+.status-badge.tracking {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+/* ---------- Create Form Modal ---------- */
+.transport-form-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.transport-form-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 32px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: var(--shadow-lg);
+}
+
+.transport-form-card h3 {
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.transport-form-card .form-group {
+    margin-bottom: 20px;
+}
+
+.transport-form-card label {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.transport-form-card input,
+.transport-form-card select {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.transport-form-card input:focus,
+.transport-form-card select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.transport-form-card select option {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.transport-form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+}
+
+.transport-form-actions .btn {
+    flex: 1;
+}
+
+/* ---------- Driver Dashboard ---------- */
+.driver-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.driver-bus-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.driver-bus-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+    background: rgba(124, 58, 237, 0.1);
+    color: var(--accent-primary);
+}
+
+.driver-bus-number {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.driver-route-name {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: 32px;
+}
+
+.driver-ride-controls {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.ride-btn {
+    padding: 14px 32px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s ease;
+    color: #fff;
+    min-width: 180px;
+}
+
+.ride-btn.start {
+    background: var(--accent-success);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.ride-btn.start:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+}
+
+.ride-btn.stop {
+    background: var(--accent-danger);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+.ride-btn.stop:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.3);
+}
+
+.ride-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* GPS status */
+.gps-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 24px;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.gps-status.sending {
+    color: var(--accent-success);
+}
+
+.gps-status.error {
+    color: var(--accent-danger);
+}
+
+.gps-pulse {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: gps-ping 1.5s ease-in-out infinite;
+}
+
+@keyframes gps-ping {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 currentColor;
+    }
+
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 8px transparent;
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 transparent;
+    }
+}
+
+/* ---------- Student Bus Tracking ---------- */
+.bus-tracking-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.bus-search-bar {
+    position: relative;
+}
+
+.bus-search-bar input {
+    width: 100%;
+    padding: 14px 20px 14px 48px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    box-shadow: var(--shadow-sm);
+}
+
+.bus-search-bar input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.bus-search-bar svg {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+}
+
+/* Bus list */
+.bus-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.bus-list-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.bus-list-item:hover {
+    border-color: var(--accent-primary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.bus-list-item.selected {
+    border-color: var(--accent-primary);
+    background: rgba(124, 58, 237, 0.04);
+}
+
+.bus-list-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.bus-list-icon.active-icon {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--accent-success);
+}
+
+.bus-list-icon.inactive-icon {
+    background: rgba(239, 68, 68, 0.05);
+    color: var(--accent-danger);
+}
+
+.bus-list-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.bus-list-info h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.bus-list-info p {
+    font-size: 0.825rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Map container */
+.map-container {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    height: 500px;
+    position: relative;
+    box-shadow: var(--shadow-md);
+    background: var(--bg-tertiary);
+}
+
+.map-placeholder {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    gap: 12px;
+}
+
+.map-placeholder p {
+    font-size: 1rem;
+}
+
+.bus-not-active-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    gap: 16px;
+    height: 100%;
+}
+
+.bus-not-active-msg h4 {
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    margin-bottom: 4px;
+}
+
+/* Module disabled overlay */
+.module-disabled {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 80px 20px;
+    gap: 20px;
+    color: var(--text-secondary);
+}
+
+.module-disabled svg {
+    color: var(--text-placeholder);
+}
+
+.module-disabled h3 {
+    font-size: 1.5rem;
+    color: var(--text-primary);
+}
+
+.module-disabled p {
+    font-size: 1rem;
+    max-width: 450px;
+    line-height: 1.6;
+}
+
+/* ---------- Empty state ---------- */
+.transport-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    gap: 16px;
+}
+
+.transport-empty h4 {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+    .transport-tabs {
+        flex-direction: column;
+    }
+
+    .transport-grid,
+    .bus-list {
+        grid-template-columns: 1fr;
+    }
+
+    .driver-ride-controls {
+        flex-direction: column;
+    }
+
+    .ride-btn {
+        width: 100%;
+    }
+
+    .module-toggle-card {
+        flex-direction: column;
+        text-align: center;
+        padding: 32px 20px;
+    }
+
+    .map-container {
+        height: 400px;
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}

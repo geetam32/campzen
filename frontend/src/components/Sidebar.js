@@ -15,7 +15,11 @@ import {
     UserCheck,
     User,
     MessageSquare,
+<<<<<<< HEAD
     Megaphone
+=======
+    Bus
+>>>>>>> 7cf611b (Live Bus Tracking Working)
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -33,7 +37,11 @@ const Sidebar = () => {
         { to: '/admin/attendance', icon: ClipboardList, label: 'Attendance Overview' },
         { to: '/admin/calendar', icon: Calendar, label: 'Academic Calendar' },
         { to: '/admin/concerns', icon: AlertCircle, label: 'Concerns' },
+<<<<<<< HEAD
         { to: '/admin/notices', icon: Megaphone, label: 'Notice Board' },
+=======
+        { to: '/admin/transport', icon: Bus, label: 'Transport' },
+>>>>>>> 7cf611b (Live Bus Tracking Working)
     ];
 
     const superAdminLinks = [
@@ -64,12 +72,20 @@ const Sidebar = () => {
         { to: '/student/materials', icon: BookOpen, label: 'Materials' },
         { to: '/student/calendar', icon: Calendar, label: 'Academic Calendar' },
         { to: '/student/concerns', icon: MessageSquare, label: 'Raise a Concern' },
+<<<<<<< HEAD
         { to: '/student/notices', icon: Megaphone, label: 'Notice Board' },
+=======
+        { to: '/student/bus-tracking', icon: Bus, label: 'Bus Tracking' },
+>>>>>>> 7cf611b (Live Bus Tracking Working)
         { to: '/student/profile', icon: User, label: 'Profile' },
     ];
 
     let links = [];
     let sectionTitle = '';
+
+    const driverLinks = [
+        { to: '/driver', icon: LayoutDashboard, label: 'Dashboard', end: true },
+    ];
 
     if (role === 'admin') {
         links = adminLinks;
@@ -83,6 +99,9 @@ const Sidebar = () => {
     } else if (role === 'student') {
         links = studentLinks;
         sectionTitle = 'Student Menu';
+    } else if (role === 'driver') {
+        links = driverLinks;
+        sectionTitle = 'Driver Menu';
     }
 
     return (

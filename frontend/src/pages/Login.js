@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { GraduationCap, Shield, User, Users, Lock, ArrowRight, ArrowLeft, Loader2, BookOpen } from 'lucide-react';
+import { GraduationCap, Shield, User, Users, Lock, ArrowRight, ArrowLeft, Loader2, BookOpen, Truck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import '../styles/styles.css';
 import '../styles/auth.css';
@@ -44,6 +44,15 @@ const Login = () => {
             description: 'Academic Faculty',
             color: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
             bgLight: 'rgba(139, 92, 246, 0.1)',
+            hasRegister: false
+        },
+        {
+            id: 'driver',
+            label: 'Driver',
+            icon: Truck,
+            description: 'Bus Tracking',
+            color: 'linear-gradient(135deg, #f97316 0%, #c2410c 100%)',
+            bgLight: 'rgba(249, 115, 22, 0.1)',
             hasRegister: false
         }
     ];

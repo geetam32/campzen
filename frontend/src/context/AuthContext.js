@@ -70,6 +70,24 @@ export function AuthProvider({ children }) {
             }
         }
 
+        // Check drivers
+        if (!foundUserDoc) {
+            const driverQuery = query(
+                collection(db, 'drivers'),
+                where('college_id', '==', collegeId)
+            );
+            const driverSnapshot = await getDocs(driverQuery);
+            for (const docSnap of driverSnapshot.docs) {
+                const data = docSnap.data();
+                if (data.username === userId || data.uid === userId) {
+                    foundUserDoc = { id: docSnap.id, ...data, college_id: collegeId };
+                    userRole = 'driver';
+                    requiresFirebaseAuth = false;
+                    break;
+                }
+            }
+        }
+
         // Check students
         if (!foundUserDoc) {
             const studentQuery = query(
@@ -176,6 +194,16 @@ export function AuthProvider({ children }) {
                     const teacherDoc = await getDoc(doc(db, 'teachers', currentUser.uid));
                     if (teacherDoc.exists()) {
                         userDoc = { id: teacherDoc.id, ...teacherDoc.data() };
+                    }
+                }
+
+                // Check drivers
+                if (!userDoc) {
+                    const driverQuery = query(collection(db, 'drivers'), where('uid', '==', currentUser.uid));
+                    const driverSnapshot = await getDocs(driverQuery);
+                    if (!driverSnapshot.empty) {
+                        const data = driverSnapshot.docs[0].data();
+                        userDoc = { id: driverSnapshot.docs[0].id, ...data };
                     }
                 }
 
