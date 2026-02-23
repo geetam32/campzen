@@ -14,9 +14,9 @@ import {
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Trash2, Edit2, X, Search, Book } from 'lucide-react-native';
+import { Plus, Trash2, Edit2, X, Search, Book, ArrowLeft } from 'lucide-react-native';
 
-const SubjectManagement = () => {
+const SubjectManagement = ({ navigation }) => {
     const { userData } = useAuth();
     const [subjects, setSubjects] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -82,9 +82,14 @@ const SubjectManagement = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.pageTitle}>Subjects</Text>
-                    <Text style={styles.subTitle}>Define course curriculum</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.pageTitle}>Subjects</Text>
+                        <Text style={styles.subTitle}>Define course curriculum</Text>
+                    </View>
                 </View>
                 <TouchableOpacity style={styles.addBtn} onPress={() => { setEditingSubject(null); setFormData({ name: '', code: '', type: 'theory' }); setShowModal(true); }}>
                     <Plus size={24} color="#fff" />

@@ -11,11 +11,11 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Calendar, Clock, FileText, Users, Megaphone, ArrowRight, ClipboardCheck, BookOpen } from 'lucide-react-native';
+import { Calendar, Clock, FileText, Users, Megaphone, ArrowRight, ClipboardCheck, BookOpen, Bus, LogOut } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const TeacherDashboard = ({ navigation }) => {
-    const { userData } = useAuth();
+    const { userData, logout } = useAuth();
     const [stats, setStats] = useState({
         classesToday: 0,
         periodsToday: 0,
@@ -120,9 +120,14 @@ const TeacherDashboard = ({ navigation }) => {
             contentContainerStyle={styles.scrollContent}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
-            <View style={styles.header}>
-                <Text style={styles.greeting}>Teacher Dashboard</Text>
-                <Text style={styles.subGreeting}>Welcome back, {userData?.name}! Today is {getDayName()}.</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.greeting}>Teacher Dashboard</Text>
+                    <Text style={styles.subGreeting}>Welcome back, {userData?.name}!</Text>
+                </View>
+                <TouchableOpacity onPress={() => logout()} style={{ backgroundColor: '#fee2e2', padding: 10, borderRadius: 12 }}>
+                    <LogOut size={20} color="#ef4444" />
+                </TouchableOpacity>
             </View>
 
             <View style={styles.statsGrid}>
@@ -171,6 +176,7 @@ const TeacherDashboard = ({ navigation }) => {
                     {userData?.is_class_teacher && (
                         <ShortcutBtn icon={Users} label="Tracker" color="#ef4444" onPress={() => navigation.navigate('Tracker')} />
                     )}
+                    <ShortcutBtn icon={Bus} label="Bus Share" color="#8b5cf6" onPress={() => navigation.navigate('BusSharing')} />
                 </View>
 
                 {/* Notices Section */}

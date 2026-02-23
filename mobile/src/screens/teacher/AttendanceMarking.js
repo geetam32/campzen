@@ -13,11 +13,11 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore';
-import { CheckCircle, XCircle, Save, Loader2, ChevronDown, ChevronRight, Calendar, User } from 'lucide-react-native';
+import { CheckCircle, XCircle, Save, Loader2, ChevronDown, ChevronRight, Calendar, User, ArrowLeft } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
-const AttendanceMarking = () => {
+const AttendanceMarking = ({ navigation }) => {
     const { userData } = useAuth();
     const [classes, setClasses] = useState([]);
     const [students, setStudents] = useState([]);
@@ -142,7 +142,12 @@ const AttendanceMarking = () => {
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-            <Text style={styles.title}>Mark Attendance</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15, marginBottom: 20 }}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <ArrowLeft size={24} color="#1e293b" />
+                </TouchableOpacity>
+                <Text style={[styles.title, { marginBottom: 0 }]}>Mark Attendance</Text>
+            </View>
 
             <View style={styles.card}>
                 <Text style={styles.label}>Select Class</Text>

@@ -22,10 +22,11 @@ import {
     Users as UsersIcon,
     GraduationCap as GradIcon,
     Clock as ClockIcon,
-    AlertCircle as AlertIcon
+    AlertCircle as AlertIcon,
+    ArrowLeft
 } from 'lucide-react-native';
 
-const AdminNotices = () => {
+const AdminNotices = ({ navigation }) => {
     const { userData } = useAuth();
     const [notices, setNotices] = useState([]);
     const [classes, setClasses] = useState([]);
@@ -134,9 +135,14 @@ const AdminNotices = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.pageTitle}>Notice Board</Text>
-                    <Text style={styles.subTitle}>Broadcast alerts and info</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.pageTitle}>Notice Board</Text>
+                        <Text style={styles.subTitle}>Broadcast alerts and info</Text>
+                    </View>
                 </View>
                 <TouchableOpacity style={styles.addBtn} onPress={() => { setEditingNotice(null); setFormData({ title: '', content: '', target_type: 'college', target_class_id: '', type: 'info' }); setShowModal(true); }}>
                     <Plus size={24} color="#fff" />

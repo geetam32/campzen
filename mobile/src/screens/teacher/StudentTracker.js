@@ -13,10 +13,10 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Users, TrendingUp, AlertTriangle, Phone, Search } from 'lucide-react-native';
+import { Users, TrendingUp, AlertTriangle, Phone, Search, ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const StudentTracker = () => {
+const StudentTracker = ({ navigation }) => {
     const { userData } = useAuth();
     const [students, setStudents] = useState([]);
     const [attendanceStats, setAttendanceStats] = useState({});
@@ -120,9 +120,14 @@ const StudentTracker = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.pageTitle}>Student Tracker</Text>
-                    <Text style={styles.subTitle}>Monitoring {students.length} students</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.pageTitle}>Student Tracker</Text>
+                        <Text style={styles.subTitle}>Performance & behavior insights</Text>
+                    </View>
                 </View>
             </View>
 

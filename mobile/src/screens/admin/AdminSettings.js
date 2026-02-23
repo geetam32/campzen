@@ -13,9 +13,9 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
 import { doc, getDoc, updateDoc, query, collection, where, getDocs } from 'firebase/firestore';
-import { Save, Settings, Info, Clock, Calendar } from 'lucide-react-native';
+import { Save, Settings, Info, Clock, Calendar, ArrowLeft } from 'lucide-react-native';
 
-const AdminSettings = () => {
+const AdminSettings = ({ navigation }) => {
     const { userData } = useAuth();
     const [settings, setSettings] = useState({
         working_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
@@ -71,8 +71,15 @@ const AdminSettings = () => {
     return (
         <ScrollView style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.pageTitle}>Settings</Text>
-                <Text style={styles.subTitle}>Configure academic schedule</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.pageTitle}>Settings</Text>
+                        <Text style={styles.subTitle}>Configure academic schedule</Text>
+                    </View>
+                </View>
             </View>
 
             <View style={styles.section}>

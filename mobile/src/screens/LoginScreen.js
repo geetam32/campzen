@@ -48,9 +48,9 @@ const LoginScreen = ({ navigation }) => {
         },
         {
             id: 'teacher',
-            label: 'Teacher',
+            label: 'Teacher / Staff',
             icon: Users,
-            description: 'Academic Faculty',
+            description: 'Faculty & Support Staff',
             color: ['#8b5cf6', '#6d28d9'],
             bgLight: 'rgba(139, 92, 246, 0.1)'
         }
@@ -67,7 +67,9 @@ const LoginScreen = ({ navigation }) => {
                 formData.password
             );
 
-            if (result.role !== selectedRole) {
+            const isAuthorized = result.role === selectedRole || (selectedRole === 'teacher' && result.role === 'driver');
+
+            if (!isAuthorized) {
                 setError(`Invalid credentials. This is not a ${selectedRole} account.`);
                 setLoading(false);
                 return;

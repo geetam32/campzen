@@ -14,12 +14,12 @@ import { collection, query, where, getDocs, orderBy, limit } from 'firebase/fire
 import {
     Calendar, FileText, BookOpen, TrendingUp, TrendingDown,
     Activity, Clock, AlertTriangle, Download, ChevronRight, CheckCircle,
-    Flame, Star, Trophy, Bell, Zap, PlayCircle, Megaphone
+    Flame, Star, Trophy, Bell, Zap, PlayCircle, Megaphone, LogOut, Bus
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const StudentDashboard = ({ navigation }) => {
-    const { userData } = useAuth();
+    const { userData, logout } = useAuth();
     const [stats, setStats] = useState({
         materials: 0,
         quizzes: 0,
@@ -133,9 +133,14 @@ const StudentDashboard = ({ navigation }) => {
         >
             {/* Header */}
             <View style={styles.header}>
-                <View>
+                <View style={{ flex: 1 }}>
                     <Text style={styles.greeting}>{getGreeting()},</Text>
-                    <Text style={styles.userName}>{userData?.name.split(' ')[0]}! ✨</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <Text style={styles.userName}>{userData?.name.split(' ')[0]}! ✨</Text>
+                        <TouchableOpacity onPress={logout} style={{ backgroundColor: '#fee2e2', padding: 4, borderRadius: 8 }}>
+                            <LogOut size={16} color="#ef4444" />
+                        </TouchableOpacity>
+                    </View>
                     <View style={styles.dateRow}>
                         <Calendar size={12} color="#64748b" />
                         <Text style={styles.dateText}>{new Date().toLocaleDateString()}</Text>
@@ -181,6 +186,7 @@ const StudentDashboard = ({ navigation }) => {
                 <ActionBtn icon={Download} label="Materials" color={['#10B981', '#34D399']} onPress={() => navigation.navigate('StudentMaterials')} />
                 <ActionBtn icon={AlertTriangle} label="Concern" color={['#F59E0B', '#FBBF24']} onPress={() => navigation.navigate('StudentConcerns')} />
                 <ActionBtn icon={Clock} label="Timetable" color={['#3B82F6', '#60A5FA']} onPress={() => navigation.navigate('StudentTimetable')} />
+                <ActionBtn icon={Bus} label="Track Bus" color={['#6366f1', '#818cf8']} onPress={() => navigation.navigate('BusTracking')} />
             </View>
 
             {/* Stats Cards */}

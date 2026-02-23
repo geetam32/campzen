@@ -83,6 +83,29 @@ export function AuthProvider({ children }) {
             }
         }
 
+        // Check drivers
+        if (!foundUserDoc) {
+            const driverQuery = query(
+                collection(db, 'drivers'),
+                where('college_id', '==', collegeId)
+            );
+            const driverSnapshot = await getDocs(driverQuery);
+            for (const docSnap of driverSnapshot.docs) {
+                const data = docSnap.data();
+                if (
+                    data.uid?.toLowerCase() === userId.toLowerCase() ||
+                    data.email?.toLowerCase() === userId.toLowerCase() ||
+                    data.username?.toLowerCase() === userId.toLowerCase()
+                ) {
+                    foundUserDoc = { id: docSnap.id, ...data, college_id: collegeId };
+                    userRole = 'driver';
+                    userEmail = data.email;
+                    requiresFirebaseAuth = false;
+                    break;
+                }
+            }
+        }
+
         if (!foundUserDoc) {
             throw new Error('User not found. Check your User ID and College Code.');
         }
@@ -144,6 +167,14 @@ export function AuthProvider({ children }) {
                     const studentDoc = await getDoc(doc(db, 'students', currentUser.uid));
                     if (studentDoc.exists()) {
                         userDoc = { id: studentDoc.id, ...studentDoc.data() };
+                    }
+                }
+
+                // Driver check
+                if (!userDoc) {
+                    const driverDoc = await getDoc(doc(db, 'drivers', currentUser.uid));
+                    if (driverDoc.exists()) {
+                        userDoc = { id: driverDoc.id, ...driverDoc.data(), role: 'driver' };
                     }
                 }
 

@@ -13,9 +13,9 @@ import {
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
-import { Search, Calendar, ChevronDown, ChevronUp, UserCheck, UserX, Clock } from 'lucide-react-native';
+import { Search, Calendar, ChevronDown, ChevronUp, UserCheck, UserX, Clock, ArrowLeft } from 'lucide-react-native';
 
-const AttendanceOverview = () => {
+const AttendanceOverview = ({ navigation }) => {
     const { userData } = useAuth();
     const [classes, setClasses] = useState([]);
     const [records, setRecords] = useState([]);
@@ -90,8 +90,15 @@ const AttendanceOverview = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.pageTitle}>Attendance</Text>
-                <Text style={styles.subTitle}>College-wide daily oversight</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.pageTitle}>Attendance</Text>
+                        <Text style={styles.subTitle}>College-wide daily oversight</Text>
+                    </View>
+                </View>
             </View>
 
             <View style={styles.filterSection}>

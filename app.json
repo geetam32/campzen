@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "4798cc2b-8515-4ae6-bf0b-7cf8e9bcc942"
+      }
+    },
+    "android": {
+      "package": "com.geetamtadepalli.campzen1"
+    }
+  }
+}

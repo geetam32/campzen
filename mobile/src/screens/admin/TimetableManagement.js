@@ -14,11 +14,11 @@ import {
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs, getDoc, doc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Trash2, X, Calendar, AlertCircle, Info, RefreshCcw, ChevronRight, ChevronDown, BookOpen } from 'lucide-react-native';
+import { Plus, Trash2, X, Calendar, AlertCircle, Info, RefreshCcw, ChevronRight, ChevronDown, BookOpen, ArrowLeft } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
-const TimetableManagement = () => {
+const TimetableManagement = ({ navigation }) => {
     const { userData } = useAuth();
     const [classes, setClasses] = useState([]);
     const [teachers, setTeachers] = useState([]);
@@ -143,8 +143,15 @@ const TimetableManagement = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.pageTitle}>Timetable</Text>
-                <Text style={styles.subTitle}>Scheduling & slot allocation</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.pageTitle}>Timetable</Text>
+                        <Text style={styles.subTitle}>Scheduling & slot allocation</Text>
+                    </View>
+                </View>
             </View>
 
             <View style={styles.classPicker}>

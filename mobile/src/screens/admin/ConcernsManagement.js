@@ -13,9 +13,9 @@ import {
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
-import { AlertCircle, X, Clock, CheckCircle, AlertTriangle, Shield, User } from 'lucide-react-native';
+import { AlertCircle, X, Clock, CheckCircle, AlertTriangle, Shield, User, ArrowLeft } from 'lucide-react-native';
 
-const ConcernsManagement = () => {
+const ConcernsManagement = ({ navigation }) => {
     const { userData } = useAuth();
     const [concerns, setConcerns] = useState([]);
     const [classes, setClasses] = useState([]);
@@ -81,8 +81,15 @@ const ConcernsManagement = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.pageTitle}>Student Concerns</Text>
-                <Text style={styles.subTitle}>Grievances and disciplinary reports</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.pageTitle}>Student Concerns</Text>
+                        <Text style={styles.subTitle}>Grievances and disciplinary reports</Text>
+                    </View>
+                </View>
             </View>
 
             <View style={styles.filterSection}>

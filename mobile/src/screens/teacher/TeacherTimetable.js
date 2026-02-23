@@ -11,12 +11,12 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Calendar, Clock, Book, MapPin, ChevronRight, ChevronLeft } from 'lucide-react-native';
+import { Calendar, Clock, Book, MapPin, ChevronRight, ChevronLeft, ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
-const TeacherTimetable = () => {
+const TeacherTimetable = ({ navigation }) => {
     const { userData } = useAuth();
     const [timetable, setTimetable] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -58,8 +58,15 @@ const TeacherTimetable = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.pageTitle}>Timetable</Text>
-                <Text style={styles.subTitle}>Your weekly schedule</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.pageTitle}>Timetable</Text>
+                        <Text style={styles.subTitle}>Your weekly schedule</Text>
+                    </View>
+                </View>
             </View>
 
             <View style={styles.dayPicker}>

@@ -16,10 +16,10 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { Plus, Edit2, Trash2, X, Play, Square, FileText, ChevronRight } from 'lucide-react-native';
+import { Plus, Edit2, Trash2, X, Play, Square, FileText, ChevronRight, ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const TeacherQuizzes = () => {
+const TeacherQuizzes = ({ navigation }) => {
     const { userData } = useAuth();
     const [quizzes, setQuizzes] = useState([]);
     const [classes, setClasses] = useState([]);
@@ -203,9 +203,14 @@ const TeacherQuizzes = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.pageTitle}>Quizzes</Text>
-                    <Text style={styles.subTitle}>Create and manage MCQ tests</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.pageTitle}>Quizzes</Text>
+                        <Text style={styles.subTitle}>Create and manage MCQ tests</Text>
+                    </View>
                 </View>
                 <TouchableOpacity style={styles.addBtn} onPress={() => openModal()}>
                     <Plus size={24} color="#fff" />

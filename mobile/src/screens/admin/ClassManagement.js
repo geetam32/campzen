@@ -16,9 +16,9 @@ import {
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Trash2, Edit2, X, Search, BookOpen, GraduationCap } from 'lucide-react-native';
+import { Plus, Trash2, Edit2, X, Search, BookOpen, GraduationCap, ArrowLeft } from 'lucide-react-native';
 
-const ClassManagement = () => {
+const ClassManagement = ({ navigation }) => {
     const { userData } = useAuth();
     const [classes, setClasses] = useState([]);
     const [subjects, setSubjects] = useState([]);
@@ -126,9 +126,14 @@ const ClassManagement = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.pageTitle}>Classes</Text>
-                    <Text style={styles.subTitle}>Academic units management</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.pageTitle}>Classes</Text>
+                        <Text style={styles.subTitle}>Academic units management</Text>
+                    </View>
                 </View>
                 <TouchableOpacity style={styles.addBtn} onPress={() => { setEditingClass(null); setFormData({ branch: '', year: '1', semester: '1', section: 'A', subject_sessions: {}, pinMin: '', pinMax: '' }); setShowModal(true); }}>
                     <Plus size={24} color="#fff" />
@@ -142,15 +147,17 @@ const ClassManagement = () => {
                 </View>
             </View>
 
-            {loading ? <ActivityIndicator size="large" color="#6366f1" style={{ marginTop: 40 }} /> : (
-                <FlatList
-                    data={classes.filter(c => c.branch.toLowerCase().includes(searchTerm.toLowerCase()) || c.section.toLowerCase().includes(searchTerm.toLowerCase()))}
-                    keyExtractor={item => item.id}
-                    renderItem={renderClass}
-                    contentContainerStyle={styles.list}
-                    ListEmptyComponent={<View style={styles.empty}><GraduationCap size={48} color="#cbd5e1" /><Text style={styles.emptyText}>No classes configured</Text></View>}
-                />
-            )}
+            {
+                loading ? <ActivityIndicator size="large" color="#6366f1" style={{ marginTop: 40 }} /> : (
+                    <FlatList
+                        data={classes.filter(c => c.branch.toLowerCase().includes(searchTerm.toLowerCase()) || c.section.toLowerCase().includes(searchTerm.toLowerCase()))}
+                        keyExtractor={item => item.id}
+                        renderItem={renderClass}
+                        contentContainerStyle={styles.list}
+                        ListEmptyComponent={<View style={styles.empty}><GraduationCap size={48} color="#cbd5e1" /><Text style={styles.emptyText}>No classes configured</Text></View>}
+                    />
+                )
+            }
 
             <Modal visible={showModal} animationType="slide" transparent={false}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
@@ -206,7 +213,7 @@ const ClassManagement = () => {
                     </TouchableOpacity>
                 </KeyboardAvoidingView>
             </Modal>
-        </View>
+        </View >
     );
 };
 

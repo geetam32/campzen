@@ -17,9 +17,9 @@ import {
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Trash2, Edit2, X, Search, UserCheck, ChevronRight, BookOpen, GraduationCap } from 'lucide-react-native';
+import { Plus, Trash2, Edit2, X, Search, UserCheck, ChevronRight, BookOpen, GraduationCap, ArrowLeft } from 'lucide-react-native';
 
-const TeacherManagement = () => {
+const TeacherManagement = ({ navigation }) => {
     const { userData } = useAuth();
     const [teachers, setTeachers] = useState([]);
     const [classes, setClasses] = useState([]);
@@ -136,9 +136,14 @@ const TeacherManagement = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.pageTitle}>Teachers</Text>
-                    <Text style={styles.subTitle}>Faculty and class assignments</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.pageTitle}>Teachers</Text>
+                        <Text style={styles.subTitle}>Faculty and class assignments</Text>
+                    </View>
                 </View>
                 <TouchableOpacity style={styles.addBtn} onPress={() => { setEditingTeacher(null); setFormData({ uid: '', name: '', email: '', password: '', is_class_teacher: false, class_id_assigned: '', subject_assignments: [] }); setShowModal(true); }}>
                     <Plus size={24} color="#fff" />

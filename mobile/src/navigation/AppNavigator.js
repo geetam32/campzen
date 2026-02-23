@@ -19,6 +19,7 @@ import ConcernsManagement from '../screens/admin/ConcernsManagement';
 import AdminNotices from '../screens/admin/AdminNotices';
 import AttendanceOverview from '../screens/admin/AttendanceOverview';
 import TimetableManagement from '../screens/admin/TimetableManagement';
+import TransportManagement from '../screens/admin/TransportManagement';
 
 // Teacher Screens
 import TeacherDashboard from '../screens/teacher/TeacherDashboard';
@@ -28,6 +29,7 @@ import TeacherMaterials from '../screens/teacher/TeacherMaterials';
 import TeacherQuizzes from '../screens/teacher/TeacherQuizzes';
 import StudentTracker from '../screens/teacher/StudentTracker';
 import TeacherNotices from '../screens/teacher/TeacherNotices';
+import BusSharing from '../screens/teacher/BusSharing';
 
 // Student Screens
 import StudentDashboard from '../screens/student/StudentDashboard';
@@ -38,6 +40,10 @@ import StudentMaterials from '../screens/student/StudentMaterials';
 import StudentQuizzes from '../screens/student/StudentQuizzes';
 import StudentTimetable from '../screens/student/StudentTimetable';
 import StudentConcerns from '../screens/student/StudentConcerns';
+import BusTracking from '../screens/student/BusTracking';
+
+// Driver Screens
+import DriverDashboard from '../screens/driver/DriverDashboard';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -54,6 +60,7 @@ const AdminStack = () => (
         <Stack.Screen name="AdminNotices" component={AdminNotices} />
         <Stack.Screen name="AttendanceOverview" component={AttendanceOverview} />
         <Stack.Screen name="TimetableManagement" component={TimetableManagement} />
+        <Stack.Screen name="TransportManagement" component={TransportManagement} />
     </Stack.Navigator>
 );
 
@@ -66,6 +73,7 @@ const TeacherStack = () => (
         <Stack.Screen name="Quizzes" component={TeacherQuizzes} />
         <Stack.Screen name="Tracker" component={StudentTracker} />
         <Stack.Screen name="Notices" component={TeacherNotices} />
+        <Stack.Screen name="BusSharing" component={BusSharing} />
     </Stack.Navigator>
 );
 
@@ -111,6 +119,13 @@ const StudentStack = () => (
         <Stack.Screen name="StudentQuizzes" component={StudentQuizzes} />
         <Stack.Screen name="StudentTimetable" component={StudentTimetable} />
         <Stack.Screen name="StudentConcerns" component={StudentConcerns} />
+        <Stack.Screen name="BusTracking" component={BusTracking} />
+    </Stack.Navigator>
+);
+
+const DriverStack = () => (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="DriverDashboard" component={DriverDashboard} />
     </Stack.Navigator>
 );
 
@@ -139,6 +154,9 @@ const AppNavigator = () => {
                     )}
                     {userData?.role === 'student' && (
                         <Stack.Screen name="StudentRoot" component={StudentStack} />
+                    )}
+                    {userData?.role === 'driver' && (
+                        <Stack.Screen name="DriverRoot" component={DriverStack} />
                     )}
                     {!userData?.role && (
                         <Stack.Screen name="Loading" component={() => (

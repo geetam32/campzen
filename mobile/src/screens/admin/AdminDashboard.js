@@ -14,6 +14,7 @@ import { db } from '../../api/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import {
     Users,
+    LogOut,
     GraduationCap,
     BookOpen,
     ClipboardCheck,
@@ -22,14 +23,15 @@ import {
     Settings as SettingsIcon,
     ArrowRight,
     Bell,
-    CircleDashed
+    CircleDashed,
+    Bus
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
 const AdminDashboard = ({ navigation }) => {
-    const { userData } = useAuth();
+    const { userData, logout } = useAuth();
     const [stats, setStats] = useState({
         teachers: 0,
         students: 0,
@@ -82,9 +84,14 @@ const AdminDashboard = ({ navigation }) => {
                         <Text style={styles.welcomeText}>System Admin</Text>
                         <Text style={styles.adminName}>{userData?.name || 'College Admin'}</Text>
                     </View>
-                    <TouchableOpacity style={styles.notifyBtn}>
-                        <Bell size={20} color="#fff" />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <TouchableOpacity style={styles.notifyBtn} onPress={() => navigation.navigate('AdminSettings')}>
+                            <SettingsIcon size={20} color="#fff" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.notifyBtn, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]} onPress={() => logout()}>
+                            <LogOut size={20} color="#fff" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 <View style={styles.statsContainer}>
@@ -118,6 +125,7 @@ const AdminDashboard = ({ navigation }) => {
                     <QuickAction title="Circulars" icon={Bell} color="#8b5cf6" onPress={() => navigation.navigate('AdminNotices')} />
                     <QuickAction title="Concerns" icon={ClipboardCheck} color="#ef4444" onPress={() => navigation.navigate('ConcernsManagement')} />
                     <QuickAction title="Timetable" icon={Calendar} color="#06b6d4" onPress={() => navigation.navigate('TimetableManagement')} />
+                    <QuickAction title="Transport" icon={Bus} color="#f43f5e" onPress={() => navigation.navigate('TransportManagement')} />
                     <QuickAction title="Settings" icon={SettingsIcon} color="#475569" onPress={() => navigation.navigate('AdminSettings')} />
                 </View>
 

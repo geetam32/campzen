@@ -15,10 +15,10 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { Plus, Edit2, Trash2, X, FileText, Download, Link, BookOpen } from 'lucide-react-native';
+import { Plus, Edit2, Trash2, X, FileText, Download, Link, BookOpen, ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const TeacherMaterials = () => {
+const TeacherMaterials = ({ navigation }) => {
     const { userData } = useAuth();
     const [materials, setMaterials] = useState([]);
     const [classes, setClasses] = useState([]);
@@ -142,9 +142,14 @@ const TeacherMaterials = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.pageTitle}>Study Materials</Text>
-                    <Text style={styles.subTitle}>Upload resources for students</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.pageTitle}>Study Materials</Text>
+                        <Text style={styles.subTitle}>Upload resources for students</Text>
+                    </View>
                 </View>
                 <TouchableOpacity style={styles.addBtn} onPress={() => { setEditingMaterial(null); setFormData({ title: '', description: '', class_id: '', subject: '', file_url: '', file_type: 'pdf' }); setShowModal(true); }}>
                     <Plus size={24} color="#fff" />
