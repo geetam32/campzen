@@ -48,13 +48,15 @@ const AdminLayout = ({ children }) => {
                         className="fixed md:relative z-40 w-72 h-screen bg-slate-900/50 backdrop-blur-xl border-r border-white/10 p-6 flex flex-col"
                     >
                         <div className="flex items-center gap-3 mb-10 px-2">
-                            <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center overflow-hidden border border-white/10">
-                                <img src="/campusnet-logo.jpg" alt="Logo" className="w-full h-full object-cover" />
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl overflow-hidden glass-border p-1">
+                                    <img src="/campzen-logo.png" alt="Logo" className="w-full h-full object-cover" />
+                                </div>
+                                <h1 className="text-white font-bold leading-none tracking-tight text-lg">
+                                    Camp<span className="text-indigo-400">zen</span>
+                                </h1>
                             </div>
-                            <div>
-                                <h1 className="text-white font-bold leading-none">CampusNet</h1>
-                                <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest mt-1 block">Admin Console</span>
-                            </div>
+                            <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest mt-1 block">Admin Console</span>
                         </div>
 
                         <nav className="flex-1 space-y-2">

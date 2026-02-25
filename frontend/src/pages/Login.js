@@ -112,7 +112,7 @@ const Login = () => {
                     animate={{ opacity: 1 }}
                     className="corner-logo"
                 >
-                    <img src="/campusnet-logo.jpg" alt="Logo" />
+                    <img src="/campzen-logo.png" alt="Logo" />
                 </motion.div>
 
                 <motion.div
@@ -120,7 +120,7 @@ const Login = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="auth-brand"
                 >
-                    <h1 className="brand-title">Campus<span className="text-brand-blue">Net</span></h1>
+                    <h1 className="brand-title">Camp<span className="text-brand-blue">zen</span></h1>
                     <p className="brand-tagline">── CONNECT • LEARN • SUCCEED ──</p>
                 </motion.div>
 

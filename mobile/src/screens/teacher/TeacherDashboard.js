@@ -122,7 +122,7 @@ const TeacherDashboard = ({ navigation }) => {
         >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                 <View style={{ flex: 1 }}>
-                    <Text style={styles.greeting}>Teacher Dashboard</Text>
+                    <Text style={styles.greeting}>Campzen Faculty</Text>
                     <Text style={styles.subGreeting}>Welcome back, {userData?.name}!</Text>
                 </View>
                 <TouchableOpacity onPress={() => logout()} style={{ backgroundColor: '#fee2e2', padding: 10, borderRadius: 12 }}>

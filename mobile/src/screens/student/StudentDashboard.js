@@ -134,6 +134,7 @@ const StudentDashboard = ({ navigation }) => {
             {/* Header */}
             <View style={styles.header}>
                 <View style={{ flex: 1 }}>
+                    <Text style={styles.brandSubtitle}>Campzen Student Portal</Text>
                     <Text style={styles.greeting}>{getGreeting()},</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <Text style={styles.userName}>{userData?.name.split(' ')[0]}! ✨</Text>
@@ -288,6 +289,7 @@ const styles = StyleSheet.create({
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     scrollContent: { padding: 20, paddingBottom: 40 },
     header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
+    brandSubtitle: { fontSize: 10, fontWeight: 'bold', color: '#6366f1', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
     greeting: { fontSize: 16, color: '#64748b' },
     userName: { fontSize: 24, fontWeight: 'bold', color: '#1e293b' },
     dateRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 },

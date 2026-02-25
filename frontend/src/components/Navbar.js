@@ -82,10 +82,12 @@ const Navbar = () => {
     return (
         <nav className="navbar">
             <div className="navbar-brand">
-                <div className="nav-logo-box">
-                    <img src="/campusnet-logo.jpg" alt="Logo" />
+                <div className="flex items-center gap-3">
+                    <img src="/campzen-logo.png" alt="Logo" className="w-10 h-10" />
+                    <span className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                        Campzen
+                    </span>
                 </div>
-                <span>CampusNet</span>
             </div>
 
             <div className="navbar-user">

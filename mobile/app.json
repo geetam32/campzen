@@ -1,22 +1,23 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "Campzen",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logocampzen.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logocampzen.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0b1a2e"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logocampzen.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.campzen.mobile",
@@ -34,6 +35,11 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "45b6a612-1ed1-40f3-a800-bd041c439c21"
+      }
     }
   }
 }

@@ -2,7 +2,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../context/AuthContext';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Image } from 'react-native';
 import { LayoutDashboard, Users, GraduationCap, Settings, ClipboardList, BookOpen, User, Bell } from 'lucide-react-native';
 
 // Auth Screens
@@ -134,8 +134,12 @@ const AppNavigator = () => {
 
     if (loading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
-                <ActivityIndicator size="large" color="#6366f1" />
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+                <Image
+                    source={require('../../assets/logocampzen.png')}
+                    style={{ width: 300, height: 300 }}
+                    resizeMode="contain"
+                />
             </View>
         );
     }

@@ -153,12 +153,11 @@ const DriverDashboard = ({ navigation }) => {
                     <View style={styles.logoBox}>
                         <Bus size={20} color="#fff" />
                     </View>
-                    <Text style={styles.brandText}>CampusNet</Text>
                 </View>
                 <View style={styles.topRight}>
-                    <View style={styles.userInfo}>
-                        <Text style={styles.userName}>{userData?.name || 'Driver'}</Text>
-                        <Text style={styles.userRole}>Driver</Text>
+                    <View style={styles.headerTitle}>
+                        <Text style={styles.brandText}>Campzen</Text>
+                        <Text style={styles.roleText}>Driver Console</Text>
                     </View>
                     <TouchableOpacity style={styles.topIcon}>
                         <Bell size={20} color="#64748b" />

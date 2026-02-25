@@ -81,7 +81,7 @@ const AdminDashboard = ({ navigation }) => {
             <LinearGradient colors={['#6366f1', '#4f46e5']} style={styles.topSection}>
                 <View style={styles.header}>
                     <View>
-                        <Text style={styles.welcomeText}>System Admin</Text>
+                        <Text style={styles.welcomeText}>Campzen Admin Office</Text>
                         <Text style={styles.adminName}>{userData?.name || 'College Admin'}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 10 }}>

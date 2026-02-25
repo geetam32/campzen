@@ -1,4 +1,4 @@
-# CAMPUSNET
+# CAMPZEN
 ## Multi-College Academic Platform
 ### Software Project Management & System Design Document (Consolidated)
 
@@ -6,7 +6,7 @@
 
 ## 1. Project Overview
 
-**Project Name:** Poly Network  
+**Project Name:** Campzen
 **Category:** Multi-College Academic Network / ERP Platform  
 **Target Context:** Hackathon-ready, scalable web application
 
