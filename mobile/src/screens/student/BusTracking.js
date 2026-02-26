@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -12,7 +12,8 @@ import {
     ScrollView,
     FlatList
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { db } from '../../api/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import {
@@ -23,7 +24,8 @@ import {
     Target,
     Info,
     MapPin,
-    Clock
+    Clock,
+    User
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 
@@ -35,46 +37,84 @@ const BusTracking = ({ navigation }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [mapRegion, setMapRegion] = useState(null);
+    const [locations, setLocations] = useState([]);
+    const currentMetadata = useRef({});
+    const [userLocation, setUserLocation] = useState(null);
+
+    useEffect(() => {
+        (async () => {
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                console.warn('Permission to access location was denied');
+                return;
+            }
+
+            let location = await Location.getCurrentPositionAsync({});
+            setUserLocation({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+            });
+        })();
+    }, []);
 
     useEffect(() => {
         if (!userData?.college_id) return;
 
-        // Listen to all buses for this college
-        // For simplicity, we assume bus location docs are in a collection 'bus_locations'
-        // where each doc has college_id field.
-        const q = query(
-            collection(db, 'bus_locations'),
-            where('college_id', '==', userData.college_id)
-        );
+        // Listen to authoritative bus metadata from the college collection
+        const busesRef = collection(db, 'colleges', userData.college_id, 'buses');
+        // Listen to live coordinates
+        const locationsRef = query(collection(db, 'bus_locations'), where('college_id', '==', userData.college_id));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const list = snapshot.docs.map(doc => ({
-                id: doc.id,
+        const unsubBuses = onSnapshot(busesRef, (snapshot) => {
+            snapshot.docs.forEach(doc => {
+                currentMetadata.current[doc.id] = doc.data();
+            });
+            updateBusList();
+        });
+
+        const unsubLocations = onSnapshot(locationsRef, (snapshot) => {
+            const locationData = snapshot.docs.map(doc => ({
+                id: doc.id.split('_').pop(),
                 ...doc.data(),
                 lastUpdated: doc.data().last_updated?.toDate() || new Date()
             }));
 
-            setBuses(list);
-            setFilteredBuses(list);
-
-            if (list.length > 0 && !mapRegion) {
-                // Focus on first active bus or just first bus
-                const focus = list.find(b => b.status === 'active') || list[0];
-                setMapRegion({
-                    latitude: focus.latitude,
-                    longitude: focus.longitude,
-                    latitudeDelta: 0.05,
-                    longitudeDelta: 0.05,
-                });
-            }
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching bus locations:", error);
-            setLoading(false);
+            setLocations(locationData);
+            updateBusList(locationData);
         });
 
-        return () => unsubscribe();
-    }, [userData]);
+        const updateBusList = (latestLocations = locations) => {
+            const merged = latestLocations.map(loc => {
+                const meta = currentMetadata.current[loc.bus_id || loc.id] || {};
+                return {
+                    ...loc,
+                    route: meta.route || loc.route || 'Route',
+                    driver_name: meta.driver_name || loc.driver_name || 'Driver',
+                };
+            });
+
+            setBuses(merged);
+            setFilteredBuses(merged);
+
+            if (merged.length > 0 && !mapRegion) {
+                const focus = merged.find(b => b.status === 'active') || merged[0];
+                if (focus.latitude && focus.longitude) {
+                    setMapRegion({
+                        latitude: focus.latitude,
+                        longitude: focus.longitude,
+                        latitudeDelta: 0.05,
+                        longitudeDelta: 0.05,
+                    });
+                }
+            }
+            setLoading(false);
+        };
+
+        return () => {
+            unsubBuses();
+            unsubLocations();
+        };
+    }, [userData, locations]);
 
     useEffect(() => {
         const filtered = buses.filter(bus =>
@@ -172,6 +212,19 @@ const BusTracking = ({ navigation }) => {
                     region={mapRegion}
                     onRegionChangeComplete={setMapRegion}
                 >
+                    {/* User Location Marker */}
+                    {userLocation && (
+                        <Marker
+                            coordinate={userLocation}
+                            title="My Location"
+                        >
+                            <View style={styles.userMarkerContainer}>
+                                <User size={16} color="#fff" />
+                            </View>
+                        </Marker>
+                    )}
+
+                    {/* Bus Markers */}
                     {buses.map(bus => (
                         <Marker
                             key={bus.id}
@@ -183,6 +236,19 @@ const BusTracking = ({ navigation }) => {
                             </View>
                         </Marker>
                     ))}
+
+                    {/* Path Line between Student and Selected Bus */}
+                    {selectedBus && userLocation && (
+                        <Polyline
+                            coordinates={[
+                                userLocation,
+                                { latitude: selectedBus.latitude, longitude: selectedBus.longitude }
+                            ]}
+                            strokeColor="#6366f1"
+                            strokeWidth={3}
+                            lineDashPattern={[5, 5]}
+                        />
+                    )}
                 </MapView>
 
                 {selectedBus && (
@@ -205,6 +271,23 @@ const BusTracking = ({ navigation }) => {
                                 <Navigation size={14} color="#64748b" />
                                 <Text style={styles.detailText}>Status: {selectedBus.status === 'active' ? 'Moving' : 'Stationary'}</Text>
                             </View>
+                            {userLocation && (
+                                <View style={styles.detailRow}>
+                                    <MapPin size={14} color="#64748b" />
+                                    <Text style={styles.detailText}>
+                                        Approx. Distance: {(function calculateDistance(lat1, lon1, lat2, lon2) {
+                                            const R = 6371; // km
+                                            const dLat = (lat2 - lat1) * Math.PI / 180;
+                                            const dLon = (lon2 - lon1) * Math.PI / 180;
+                                            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                                                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                                                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                                            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                                            return (R * c).toFixed(2);
+                                        })(userLocation.latitude, userLocation.longitude, selectedBus.latitude, selectedBus.longitude)} km
+                                    </Text>
+                                </View>
+                            )}
                         </View>
                     </View>
                 )}
@@ -273,6 +356,14 @@ const styles = StyleSheet.create({
     map: { ...StyleSheet.absoluteFillObject },
     markerContainer: {
         backgroundColor: '#6366f1',
+        padding: 8,
+        borderRadius: 20,
+        borderWidth: 2,
+        borderColor: '#fff',
+        elevation: 5,
+    },
+    userMarkerContainer: {
+        backgroundColor: '#10b981',
         padding: 8,
         borderRadius: 20,
         borderWidth: 2,

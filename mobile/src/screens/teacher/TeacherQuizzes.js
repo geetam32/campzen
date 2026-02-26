@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, doc, updateDoc, deleteDoc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { Plus, Edit2, Trash2, X, Play, Square, FileText, ChevronRight, ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -37,31 +37,37 @@ const TeacherQuizzes = ({ navigation }) => {
         status: 'draft'
     });
 
-    const fetchData = async () => {
+    useEffect(() => {
         if (!userData?.college_id) return;
+
         setLoading(true);
-        try {
-            // Fetch quizzes
-            const qQ = query(collection(db, 'quizzes'),
-                where('college_id', '==', userData.college_id),
-                where('created_by', '==', userData.uid));
-            const snapQ = await getDocs(qQ);
+
+        const qQ = query(collection(db, 'quizzes'),
+            where('college_id', '==', userData.college_id),
+            where('created_by', '==', userData.uid));
+
+        const qC = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));
+        const qS = query(collection(db, 'subjects'), where('college_id', '==', userData.college_id));
+
+        const unsubQuizzes = onSnapshot(qQ, (snapQ) => {
             setQuizzes(snapQ.docs.map(d => ({ id: d.id, ...d.data() })));
+            setLoading(false);
+        });
 
-            // Fetch classes
-            const qC = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));
-            const snapC = await getDocs(qC);
+        const unsubClasses = onSnapshot(qC, (snapC) => {
             setClasses(snapC.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
 
-            // Fetch subjects
-            const qS = query(collection(db, 'subjects'), where('college_id', '==', userData.college_id));
-            const snapS = await getDocs(qS);
+        const unsubSubjects = onSnapshot(qS, (snapS) => {
             setSubjects(snapS.docs.map(d => ({ id: d.id, ...d.data() })));
-        } catch (error) { console.error(error); }
-        finally { setLoading(false); }
-    };
+        });
 
-    useEffect(() => { fetchData(); }, [userData]);
+        return () => {
+            unsubQuizzes();
+            unsubClasses();
+            unsubSubjects();
+        };
+    }, [userData]);
 
     const fetchQuestions = async (quizId) => {
         const qQs = query(collection(db, 'quiz_questions'), where('quiz_id', '==', quizId));
@@ -116,7 +122,7 @@ const TeacherQuizzes = ({ navigation }) => {
                 subject: formData.subject,
                 status: formData.status,
                 created_by: userData.uid,
-                created_at: new Date()
+                created_at: Timestamp.now()
             };
 
             let quizId;
@@ -141,8 +147,21 @@ const TeacherQuizzes = ({ navigation }) => {
                 });
             }
 
+            // Also add a notification if it's a new quiz
+            if (!editingQuiz) {
+                await addDoc(collection(db, 'notifications'), {
+                    college_id: userData.college_id,
+                    type: 'quiz',
+                    title: `New Quiz: ${formData.title}`,
+                    content: `A new quiz for ${formData.subject} has been posted.`,
+                    target_type: 'class',
+                    target_id: formData.class_id,
+                    created_at: Timestamp.now(),
+                    author_name: userData.name
+                });
+            }
+
             setShowModal(false);
-            fetchData();
         } catch (error) { console.error(error); }
         finally { setSaving(false); }
     };
@@ -150,7 +169,6 @@ const TeacherQuizzes = ({ navigation }) => {
     const toggleStatus = async (quiz) => {
         const newStatus = quiz.status === 'draft' ? 'active' : quiz.status === 'active' ? 'ended' : 'draft';
         await updateDoc(doc(db, 'quizzes', quiz.id), { status: newStatus });
-        fetchData();
     };
 
     const getStatusStyle = (status) => {
@@ -188,7 +206,6 @@ const TeacherQuizzes = ({ navigation }) => {
                             {
                                 text: "Delete", style: 'destructive', onPress: async () => {
                                     await deleteDoc(doc(db, 'quizzes', item.id));
-                                    fetchData();
                                 }
                             }
                         ]);

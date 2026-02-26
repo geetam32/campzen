@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { Users, TrendingUp, AlertTriangle, Phone, Search, ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -23,51 +23,74 @@ const StudentTracker = ({ navigation }) => {
     const [quizStats, setQuizStats] = useState({});
     const [loading, setLoading] = useState(true);
 
-    const fetchData = async () => {
+    useEffect(() => {
         if (!userData?.college_id || !userData?.class_id_assigned) return;
-        setLoading(true);
-        try {
-            const qS = query(collection(db, 'students'),
-                where('college_id', '==', userData.college_id),
-                where('class_id', '==', userData.class_id_assigned));
-            const snapS = await getDocs(qS);
-            const list = snapS.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setStudents(list);
 
-            const qA = query(collection(db, 'attendance_records'),
-                where('college_id', '==', userData.college_id),
-                where('class_id', '==', userData.class_id_assigned));
-            const snapA = await getDocs(qA);
+        setLoading(true);
+
+        const qS = query(collection(db, 'students'),
+            where('college_id', '==', userData.college_id),
+            where('class_id', '==', userData.class_id_assigned));
+
+        const qA = query(collection(db, 'attendance_records'),
+            where('college_id', '==', userData.college_id),
+            where('class_id', '==', userData.class_id_assigned));
+
+        const qQ = query(collection(db, 'quizzes'),
+            where('college_id', '==', userData.college_id),
+            where('class_id', '==', userData.class_id_assigned));
+
+        let currentStudents = [];
+        let currentAttendance = [];
+        let currentQuizzes = [];
+
+        const calculateAllStats = async () => {
             const aStats = {};
-            const totalRecords = snapA.size;
-            list.forEach(s => {
+            const totalRecords = currentAttendance.length;
+            currentStudents.forEach(s => {
                 let present = 0;
-                snapA.docs.forEach(doc => { if (doc.data().present?.includes(s.pin)) present++; });
+                currentAttendance.forEach(doc => { if (doc.present?.includes(s.pin)) present++; });
                 aStats[s.pin] = totalRecords > 0 ? Math.round((present / totalRecords) * 100) : 100;
             });
             setAttendanceStats(aStats);
 
-            const qQ = query(collection(db, 'quizzes'),
-                where('college_id', '==', userData.college_id),
-                where('class_id', '==', userData.class_id_assigned));
-            const snapQ = await getDocs(qQ);
-            const quizIds = snapQ.docs.map(d => d.id);
+            const quizIds = currentQuizzes.map(d => d.id);
             const q_stats = {};
-            for (const s of list) {
+            for (const s of currentStudents) {
                 let totalMarks = 0, count = 0;
                 for (const qId of quizIds) {
-                    const qAtt = query(collection(db, 'quiz_attempts'), where('quiz_id', '==', qId), where('student_id', '==', s.pin));
-                    const snapAtt = await getDocs(qAtt);
+                    const qAttQ = query(collection(db, 'quiz_attempts'), where('quiz_id', '==', qId), where('student_id', '==', s.pin));
+                    const snapAtt = await getDocs(qAttQ);
                     if (!snapAtt.empty) { count++; totalMarks += snapAtt.docs[0].data().score || 0; }
                 }
                 q_stats[s.pin] = count > 0 ? Math.round(totalMarks / count) : null;
             }
             setQuizStats(q_stats);
-        } catch (error) { console.error(error); }
-        finally { setLoading(false); }
-    };
+            setLoading(false);
+        };
 
-    useEffect(() => { fetchData(); }, [userData]);
+        const unsubStudents = onSnapshot(qS, (snap) => {
+            currentStudents = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setStudents(currentStudents);
+            calculateAllStats();
+        });
+
+        const unsubAttendance = onSnapshot(qA, (snap) => {
+            currentAttendance = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            calculateAllStats();
+        });
+
+        const unsubQuizzes = onSnapshot(qQ, (snap) => {
+            currentQuizzes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            calculateAllStats();
+        });
+
+        return () => {
+            unsubStudents();
+            unsubAttendance();
+            unsubQuizzes();
+        };
+    }, [userData]);
 
     const handleCall = (phone) => {
         if (phone) Linking.openURL(`tel:${phone}`);

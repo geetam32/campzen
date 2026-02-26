@@ -8,19 +8,24 @@ import {
     ActivityIndicator,
     TextInput,
     Linking,
-    FlatList
+    FlatList,
+    Alert
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { FileText, Download, Search, Book, Clock } from 'lucide-react-native';
+import { FileText, Download, Search, Book, Clock, ArrowLeft, ExternalLink } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
-const StudentMaterials = () => {
+const StudentMaterials = ({ navigation }) => {
     const { userData } = useAuth();
     const [materials, setMaterials] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [downloading, setDownloading] = useState(null);
 
     const fetchData = async () => {
         if (!userData?.college_id || !userData?.class_id) return;
@@ -37,9 +42,65 @@ const StudentMaterials = () => {
 
     useEffect(() => { fetchData(); }, [userData]);
 
+    const handleAccess = async (item) => {
+        const url = item.file_url;
+        if (!url) {
+            Alert.alert("Error", "No file URL available for this material.");
+            return;
+        }
+
+        try {
+            // Check if it's a web URL (http/https)
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                // Try opening with in-app browser first
+                await WebBrowser.openBrowserAsync(url);
+            } else {
+                // It's a local/content URI — try to download and share
+                setDownloading(item.id);
+                const fileName = item.file_name || item.title?.replace(/\s+/g, '_') || 'material';
+                const ext = item.file_type || 'pdf';
+                const localUri = FileSystem.documentDirectory + `${fileName}.${ext}`;
+
+                // If the URI is already a local file, share it directly
+                if (url.startsWith('file://') || url.startsWith('content://')) {
+                    const canShare = await Sharing.isAvailableAsync();
+                    if (canShare) {
+                        await Sharing.shareAsync(url);
+                    } else {
+                        Alert.alert("Info", "Sharing is not available on this device. Try opening the URL in a browser.");
+                    }
+                } else {
+                    // Download from remote and share
+                    const downloadResult = await FileSystem.downloadAsync(url, localUri);
+                    const canShare = await Sharing.isAvailableAsync();
+                    if (canShare) {
+                        await Sharing.shareAsync(downloadResult.uri);
+                    } else {
+                        Alert.alert("Downloaded", "File saved successfully.");
+                    }
+                }
+                setDownloading(null);
+            }
+        } catch (error) {
+            console.error("Error accessing material:", error);
+            setDownloading(null);
+            // Fallback: try Linking
+            try {
+                const canOpen = await Linking.canOpenURL(url);
+                if (canOpen) {
+                    await Linking.openURL(url);
+                } else {
+                    Alert.alert("Error", "Unable to open this file. The link may be invalid or expired.");
+                }
+            } catch (e) {
+                Alert.alert("Error", "Unable to open this file. Please contact your teacher.");
+            }
+        }
+    };
+
     const filtered = materials.filter(m =>
-        m.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m.subject.toLowerCase().includes(searchTerm.toLowerCase())
+        m.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        m.subject?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const renderItem = ({ item }) => (
@@ -53,9 +114,19 @@ const StudentMaterials = () => {
                 {item.description ? <Text style={styles.desc} numberOfLines={2}>{item.description}</Text> : null}
                 <View style={styles.cardFooter}>
                     <View style={styles.typeBadge}><Text style={styles.typeText}>{item.file_type?.toUpperCase()}</Text></View>
-                    <TouchableOpacity style={styles.downBtn} onPress={() => Linking.openURL(item.file_url)}>
-                        <Download size={14} color="#6366f1" />
-                        <Text style={styles.downText}>Access</Text>
+                    <TouchableOpacity
+                        style={styles.downBtn}
+                        onPress={() => handleAccess(item)}
+                        disabled={downloading === item.id}
+                    >
+                        {downloading === item.id ? (
+                            <ActivityIndicator size="small" color="#6366f1" />
+                        ) : (
+                            <>
+                                <ExternalLink size={14} color="#6366f1" />
+                                <Text style={styles.downText}>Open</Text>
+                            </>
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>
@@ -65,8 +136,13 @@ const StudentMaterials = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.pageTitle}>Study Materials</Text>
-                <Text style={styles.subTitle}>Download lecture notes and resources</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 15 }}>
+                    <ArrowLeft size={24} color="#1e293b" />
+                </TouchableOpacity>
+                <View>
+                    <Text style={styles.pageTitle}>Study Materials</Text>
+                    <Text style={styles.subTitle}>Download lecture notes and resources</Text>
+                </View>
             </View>
 
             <View style={styles.searchBar}>
@@ -94,7 +170,7 @@ const StudentMaterials = () => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f8fafc' },
-    header: { paddingHorizontal: 20, paddingTop: 60, marginBottom: 20 },
+    header: { paddingHorizontal: 20, paddingTop: 60, marginBottom: 20, flexDirection: 'row', alignItems: 'center' },
     pageTitle: { fontSize: 24, fontWeight: 'bold', color: '#1e293b' },
     subTitle: { fontSize: 13, color: '#64748b', marginTop: 2 },
     searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 20, paddingHorizontal: 16, height: 48, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 20 },
@@ -109,7 +185,7 @@ const styles = StyleSheet.create({
     cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
     typeBadge: { backgroundColor: '#f1f5f9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
     typeText: { fontSize: 10, fontWeight: 'bold', color: '#64748b' },
-    downBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    downBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#eef2ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
     downText: { fontSize: 13, fontWeight: 'bold', color: '#6366f1' },
     empty: { alignItems: 'center', marginTop: 100 },
     emptyText: { color: '#94a3b8', fontSize: 16, marginTop: 12 }

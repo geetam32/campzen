@@ -22,9 +22,9 @@ const AdminDashboard = () => {
             try {
                 const collegeId = userData.college_id;
 
-                // Count teachers
-                const teachersQuery = query(collection(db, 'teachers'), where('college_id', '==', collegeId));
-                const teachersSnapshot = await getDocs(teachersQuery);
+                // Count teachers and staff
+                const tQ = query(collection(db, 'teachers'), where('college_id', '==', collegeId));
+                const staffQ = query(collection(db, 'staff'), where('college_id', '==', collegeId));
 
                 // Count students
                 const studentsQuery = query(collection(db, 'students'), where('college_id', '==', collegeId));
@@ -41,10 +41,15 @@ const AdminDashboard = () => {
                     where('college_id', '==', collegeId),
                     where('date', '==', today)
                 );
-                const attendanceSnapshot = await getDocs(attendanceQuery);
+
+                const [tS, staffS, attendanceSnapshot] = await Promise.all([
+                    getDocs(tQ),
+                    getDocs(staffQ),
+                    getDocs(attendanceQuery)
+                ]);
 
                 setStats({
-                    teachers: teachersSnapshot.size,
+                    teachers: tS.size + staffS.size,
                     students: studentsSnapshot.size,
                     classes: classesSnapshot.size,
                     attendanceToday: attendanceSnapshot.size

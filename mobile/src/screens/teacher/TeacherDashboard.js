@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { Calendar, Clock, FileText, Users, Megaphone, ArrowRight, ClipboardCheck, BookOpen, Bus, LogOut } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -32,78 +32,78 @@ const TeacherDashboard = ({ navigation }) => {
         return days[new Date().getDay()];
     };
 
-    const fetchData = async () => {
+    useEffect(() => {
         if (!userData?.college_id || !userData?.uid) return;
 
-        try {
-            const today = getDayName();
+        setLoading(true);
+        const today = getDayName();
 
-            // Fetch today's timetable
-            const ttQuery = query(
-                collection(db, 'timetables'),
-                where('college_id', '==', userData.college_id),
-                where('teacher_id', '==', userData.uid)
-            );
-            const ttSnapshot = await getDocs(ttQuery);
-            const allSlots = ttSnapshot.docs.map(doc => doc.data());
+        // Timetable Listener
+        const ttQuery = query(
+            collection(db, 'timetables'),
+            where('college_id', '==', userData.college_id),
+            where('teacher_id', '==', userData.uid)
+        );
+        const unsubTT = onSnapshot(ttQuery, (snap) => {
+            const allSlots = snap.docs.map(doc => doc.data());
             const todaySlots = allSlots.filter(s => s.day === today).sort((a, b) => a.period - b.period);
             setTodaySchedule(todaySlots);
 
             const uniqueClasses = [...new Set(todaySlots.map(s => s.class_id))];
+            setStats(prev => ({
+                ...prev,
+                classesToday: uniqueClasses.length,
+                periodsToday: todaySlots.length
+            }));
+            setLoading(false);
+        });
 
-            // Fetch pending quizzes
-            const quizQuery = query(
-                collection(db, 'quizzes'),
+        // Quiz Listener
+        const quizQuery = query(
+            collection(db, 'quizzes'),
+            where('college_id', '==', userData.college_id),
+            where('created_by', '==', userData.uid)
+        );
+        const unsubQuiz = onSnapshot(quizQuery, (snap) => {
+            const draftQuizzes = snap.docs.filter(doc => doc.data().status === 'draft');
+            setStats(prev => ({ ...prev, pendingQuizzes: draftQuizzes.length }));
+        });
+
+        // Student Listener (if class teacher)
+        let unsubStudents = () => { };
+        if (userData.is_class_teacher && userData.class_id_assigned) {
+            const studentQuery = query(
+                collection(db, 'students'),
                 where('college_id', '==', userData.college_id),
-                where('created_by', '==', userData.uid)
+                where('class_id', '==', userData.class_id_assigned)
             );
-            const quizSnapshot = await getDocs(quizQuery);
-            const draftQuizzes = quizSnapshot.docs.filter(doc => doc.data().status === 'draft');
+            unsubStudents = onSnapshot(studentQuery, (snap) => {
+                setStats(prev => ({ ...prev, totalStudents: snap.size }));
+            });
+        }
 
-            // If class teacher, count students
-            let studentCount = 0;
-            if (userData.is_class_teacher && userData.class_id_assigned) {
-                const studentQuery = query(
-                    collection(db, 'students'),
-                    where('college_id', '==', userData.college_id),
-                    where('class_id', '==', userData.class_id_assigned)
-                );
-                const studentSnapshot = await getDocs(studentQuery);
-                studentCount = studentSnapshot.size;
-            }
-
-            // Fetch notices
-            const nQuery = query(collection(db, 'notices'), where('college_id', '==', userData.college_id));
-            const nSnapshot = await getDocs(nQuery);
-            const list = nSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Notice Listener
+        const nQuery = query(collection(db, 'notices'), where('college_id', '==', userData.college_id));
+        const unsubNotices = onSnapshot(nQuery, (snap) => {
+            const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             const filtered = list.filter(n =>
                 n.target_type === 'college' ||
                 n.created_by === userData.uid ||
                 (n.target_type === 'class' && n.target_class_id === userData.class_id_assigned)
             ).sort((a, b) => (b.created_at?.toMillis() || 0) - (a.created_at?.toMillis() || 0)).slice(0, 3);
             setRecentNotices(filtered);
+        });
 
-            setStats({
-                classesToday: uniqueClasses.length,
-                periodsToday: todaySlots.length,
-                pendingQuizzes: draftQuizzes.length,
-                totalStudents: studentCount
-            });
-        } catch (error) {
-            console.error('Error fetching dashboard data:', error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchData();
+        return () => {
+            unsubTT();
+            unsubQuiz();
+            unsubStudents();
+            unsubNotices();
+        };
     }, [userData]);
 
     const onRefresh = () => {
-        setRefreshing(true);
-        fetchData();
+        // Live data doesn't strictly need manual refresh
     };
 
     if (loading && !refreshing) {
@@ -198,7 +198,7 @@ const TeacherDashboard = ({ navigation }) => {
                                     </View>
                                     <View style={styles.noticeContent}>
                                         <Text style={styles.noticeTitle} numberOfLines={1}>{notice.title}</Text>
-                                        <Text style={styles.noticeMeta}>{notice.author_name} • Just now</Text>
+                                        <Text style={styles.noticeMeta}>{notice.author_name} • {notice.created_at?.toDate ? notice.created_at.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</Text>
                                     </View>
                                 </View>
                             ))

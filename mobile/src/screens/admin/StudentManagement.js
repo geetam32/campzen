@@ -14,7 +14,7 @@ import {
     Platform
 } from 'react-native';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { Plus, Trash2, Edit2, X, Search, User, ChevronRight, GraduationCap, ArrowLeft } from 'lucide-react-native';
 
@@ -37,23 +37,28 @@ const StudentManagement = ({ navigation }) => {
         class_id: ''
     });
 
-    const fetchData = async () => {
+    useEffect(() => {
         if (!userData?.college_id) return;
+
         setLoading(true);
-        try {
-            const classesQuery = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));
-            const classesSnapshot = await getDocs(classesQuery);
-            const classesList = classesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setClasses(classesList);
 
-            const studentsQuery = query(collection(db, 'students'), where('college_id', '==', userData.college_id));
-            const studentsSnapshot = await getDocs(studentsQuery);
-            setStudents(studentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        } catch (err) { console.error(err); }
-        finally { setLoading(false); }
-    };
+        const classesQuery = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));
+        const studentsQuery = query(collection(db, 'students'), where('college_id', '==', userData.college_id));
 
-    useEffect(() => { fetchData(); }, [userData]);
+        const unsubClasses = onSnapshot(classesQuery, (snapshot) => {
+            setClasses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
+
+        const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
+            setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setLoading(false);
+        });
+
+        return () => {
+            unsubClasses();
+            unsubStudents();
+        };
+    }, [userData]);
 
     const handleSave = async () => {
         if (!formData.pin || !formData.name || !formData.email || !formData.class_id) {
@@ -84,7 +89,6 @@ const StudentManagement = ({ navigation }) => {
                 await addDoc(collection(db, 'students'), { ...sData, password: formData.password, created_at: new Date() });
             }
             setShowModal(false);
-            fetchData();
         } catch (err) { console.error(err); }
         finally { setSaving(false); }
     };
@@ -95,7 +99,6 @@ const StudentManagement = ({ navigation }) => {
             {
                 text: "Delete", style: 'destructive', onPress: async () => {
                     await deleteDoc(doc(db, 'students', id));
-                    fetchData();
                 }
             }
         ]);

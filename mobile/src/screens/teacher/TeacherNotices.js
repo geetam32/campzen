@@ -13,8 +13,9 @@ import {
     KeyboardAvoidingView,
     Platform
 } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, addDoc, doc, deleteDoc, updateDoc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { Plus, Trash2, Edit2, X, Megaphone, Users, GraduationCap, Clock, AlertCircle, ArrowLeft } from 'lucide-react-native';
 
@@ -32,28 +33,60 @@ const TeacherNotices = ({ navigation }) => {
         content: '',
         target_type: 'class',
         target_class_id: '',
-        type: 'info'
+        type: 'info',
+        file_url: '',
+        file_type: 'pdf',
+        file_name: ''
     });
 
-    const fetchData = async () => {
+    useEffect(() => {
         if (!userData?.college_id) return;
+
         setLoading(true);
-        try {
-            const qN = query(collection(db, 'notices'),
-                where('college_id', '==', userData.college_id),
-                where('created_by', '==', userData.uid),
-                orderBy('created_at', 'desc'));
-            const snapN = await getDocs(qN);
-            setNotices(snapN.docs.map(d => ({ id: d.id, ...d.data() })));
 
-            const qC = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));
-            const snapC = await getDocs(qC);
+        const qN = query(collection(db, 'notices'),
+            where('college_id', '==', userData.college_id),
+            where('created_by', '==', userData.uid));
+
+        const qC = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));
+
+        const unsubNotices = onSnapshot(qN, (snapN) => {
+            const noticesList = snapN.docs.map(d => ({ id: d.id, ...d.data() }));
+            noticesList.sort((a, b) => (b.created_at?.toMillis() || 0) - (a.created_at?.toMillis() || 0));
+            setNotices(noticesList);
+            setLoading(false);
+        });
+
+        const unsubClasses = onSnapshot(qC, (snapC) => {
             setClasses(snapC.docs.map(d => ({ id: d.id, ...d.data() })));
-        } catch (err) { console.error(err); }
-        finally { setLoading(false); }
-    };
+        });
 
-    useEffect(() => { fetchData(); }, [userData]);
+        return () => {
+            unsubNotices();
+            unsubClasses();
+        };
+    }, [userData]);
+
+    const pickDocument = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: "*/*",
+                copyToCacheDirectory: true
+            });
+
+            if (!result.canceled) {
+                const file = result.assets[0];
+                setFormData({
+                    ...formData,
+                    file_url: file.uri,
+                    file_name: file.name,
+                    file_type: file.name.split('.').pop().toLowerCase()
+                });
+            }
+        } catch (err) {
+            console.error("Error picking document:", err);
+        }
+    };
 
     const handleSave = async () => {
         if (!formData.title || !formData.content) {
@@ -70,6 +103,8 @@ const TeacherNotices = ({ navigation }) => {
                 target_type: formData.target_type,
                 target_class_id: formData.target_type === 'class' ? formData.target_class_id : null,
                 type: formData.type,
+                file_url: formData.file_url || null,
+                file_type: formData.file_type || 'pdf',
                 created_by: userData.uid,
                 author_name: userData.name,
                 author_role: userData.role,
@@ -95,7 +130,6 @@ const TeacherNotices = ({ navigation }) => {
                 });
             }
             setShowModal(false);
-            fetchData();
         } catch (err) { console.error(err); }
         finally { setSaving(false); }
     };
@@ -106,7 +140,6 @@ const TeacherNotices = ({ navigation }) => {
             {
                 text: "Delete", style: 'destructive', onPress: async () => {
                     await deleteDoc(doc(db, 'notices', id));
-                    fetchData();
                 }
             }
         ]);
@@ -122,7 +155,7 @@ const TeacherNotices = ({ navigation }) => {
 
     const renderNoticeItem = ({ item }) => {
         const cls = classes.find(c => c.id === item.target_class_id);
-        const dateStr = item.created_at?.toDate().toLocaleDateString();
+        const dateStr = item.created_at?.toDate ? item.created_at.toDate().toLocaleDateString() : 'Recent';
 
         return (
             <View style={styles.noticeCard}>
@@ -226,6 +259,25 @@ const TeacherNotices = ({ navigation }) => {
                                 </ScrollView>
                             </>
                         )}
+
+                        <Text style={styles.label}>Attachment File</Text>
+                        <TouchableOpacity style={styles.pickerBtn} onPress={pickDocument}>
+                            <View style={styles.pickerContent}>
+                                <Plus size={20} color="#6366f1" />
+                                <Text style={styles.pickerText} numberOfLines={1}>
+                                    {formData.file_name || 'Choose from Device'}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <Text style={styles.label}>Or Attachment URL</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={formData.file_url}
+                            onChangeText={t => setFormData({ ...formData, file_url: t })}
+                            placeholder="https://link-to-document.com"
+                        />
+                        <Text style={styles.helpText}>You can link a Google Drive or Dropbox file</Text>
                     </ScrollView>
                     <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
                         {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{editingNotice ? 'Update' : 'Post'}</Text>}
@@ -274,7 +326,18 @@ const styles = StyleSheet.create({
     chipText: { fontSize: 11, color: '#64748b' },
     activeChipText: { color: '#6366f1', fontWeight: 'bold' },
     saveBtn: { backgroundColor: '#6366f1', margin: 20, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-    saveBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
+    saveBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+    helpText: { fontSize: 11, color: '#94a3b8', marginTop: 4, fontStyle: 'italic', marginBottom: 20 },
+    pickerBtn: {
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderRadius: 12,
+        padding: 12,
+        borderStyle: 'dashed'
+    },
+    pickerContent: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    pickerText: { fontSize: 13, color: '#64748b', flex: 1 }
 });
 
 export default TeacherNotices;

@@ -36,22 +36,17 @@ const DriverDashboard = ({ navigation }) => {
     const locationSubscription = useRef(null);
 
     useEffect(() => {
-        if (userData?.bus_id && userData?.college_id) {
-            fetchBusDetails();
-        }
-    }, [userData]);
+        if (!userData?.bus_id || !userData?.college_id) return;
 
-    const fetchBusDetails = async () => {
-        try {
-            const busRef = doc(db, 'colleges', userData.college_id, 'buses', userData.bus_id);
-            const snap = await getDoc(busRef);
+        const busRef = doc(db, 'colleges', userData.college_id, 'buses', userData.bus_id);
+        const unsubscribe = onSnapshot(busRef, (snap) => {
             if (snap.exists()) {
                 setBusData(snap.data());
             }
-        } catch (error) {
-            console.error(error);
-        }
-    };
+        });
+
+        return () => unsubscribe();
+    }, [userData]);
 
     const startSharing = async () => {
         setLoading(true);

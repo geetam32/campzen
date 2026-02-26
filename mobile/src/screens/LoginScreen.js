@@ -15,7 +15,7 @@ import {
     StatusBar
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { Shield, GraduationCap, Users, Lock, User, ArrowRight, ArrowLeft, Menu, Sparkles } from 'lucide-react-native';
+import { Shield, GraduationCap, Users, Lock, User, ArrowRight, ArrowLeft, Menu, Sparkles, Eye, EyeOff } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ScreenCapture from 'expo-screen-capture';
 
@@ -67,6 +67,7 @@ const LoginScreen = ({ navigation }) => {
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
 
     const roles = [
@@ -292,13 +293,19 @@ const LoginScreen = ({ navigation }) => {
                                         <View style={styles.inputWrapper}>
                                             <Lock size={18} color="#94a3b8" style={styles.inputIcon} />
                                             <TextInput
-                                                style={styles.input}
+                                                style={[styles.input, { paddingRight: 45 }]}
                                                 placeholder="••••••••"
                                                 placeholderTextColor="#94a3b8"
-                                                secureTextEntry={true}
+                                                secureTextEntry={!showPassword}
                                                 value={formData.password}
                                                 onChangeText={(text) => setFormData({ ...formData, password: text })}
                                             />
+                                            <TouchableOpacity
+                                                onPress={() => setShowPassword(!showPassword)}
+                                                style={{ position: 'absolute', right: 14 }}
+                                            >
+                                                {showPassword ? <EyeOff size={18} color="#94a3b8" /> : <Eye size={18} color="#94a3b8" />}
+                                            </TouchableOpacity>
                                         </View>
                                     </View>
 

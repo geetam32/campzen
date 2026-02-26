@@ -6,12 +6,11 @@ import {
     ScrollView,
     TouchableOpacity,
     ActivityIndicator,
-    Image,
     Dimensions
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import {
     Users,
     LogOut,
@@ -20,11 +19,11 @@ import {
     ClipboardCheck,
     Plus,
     Calendar,
-    Settings as SettingsIcon,
     ArrowRight,
     Bell,
     CircleDashed,
-    Bus
+    Bus,
+    Star
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -34,36 +33,59 @@ const AdminDashboard = ({ navigation }) => {
     const { userData, logout } = useAuth();
     const [stats, setStats] = useState({
         teachers: 0,
+        staff: 0,
         students: 0,
         classes: 0,
         attendanceToday: 0
     });
     const [loading, setLoading] = useState(true);
 
-    const fetchStats = async () => {
-        if (!userData?.college_id) return;
+    useEffect(() => {
+        if (!userData?.college_id) {
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
-        try {
-            const collegeId = userData.college_id;
-            const tQ = query(collection(db, 'teachers'), where('college_id', '==', collegeId));
-            const sQ = query(collection(db, 'students'), where('college_id', '==', collegeId));
-            const cQ = query(collection(db, 'classes'), where('college_id', '==', collegeId));
-            const today = new Date().toISOString().split('T')[0];
-            const aQ = query(collection(db, 'attendance_records'), where('college_id', '==', collegeId), where('date', '==', today));
+        const collegeId = userData.college_id;
+        const today = new Date().toISOString().split('T')[0];
 
-            const [tS, sS, cS, aS] = await Promise.all([getDocs(tQ), getDocs(sQ), getDocs(cQ), getDocs(aQ)]);
+        // Faculty Listeners
+        const tQ = query(collection(db, 'teachers'), where('college_id', '==', collegeId));
+        const staffQ = query(collection(db, 'staff'), where('college_id', '==', collegeId));
+        const sQ = query(collection(db, 'students'), where('college_id', '==', collegeId));
+        const cQ = query(collection(db, 'classes'), where('college_id', '==', collegeId));
+        const aQ = query(collection(db, 'attendance_records'), where('college_id', '==', collegeId), where('date', '==', today));
 
-            setStats({
-                teachers: tS.size,
-                students: sS.size,
-                classes: cS.size,
-                attendanceToday: aS.size
-            });
-        } catch (error) { console.error(error); }
-        finally { setLoading(false); }
-    };
+        const unsubT = onSnapshot(tQ, (snap) => {
+            setStats(prev => ({ ...prev, teachers: snap.size }));
+            setLoading(false);
+        });
 
-    useEffect(() => { fetchStats(); }, [userData]);
+        const unsubStaff = onSnapshot(staffQ, (snap) => {
+            setStats(prev => ({ ...prev, staff: snap.size }));
+        });
+
+        const unsubS = onSnapshot(sQ, (snap) => {
+            setStats(prev => ({ ...prev, students: snap.size }));
+        });
+
+        const unsubC = onSnapshot(cQ, (snap) => {
+            setStats(prev => ({ ...prev, classes: snap.size }));
+        });
+
+        const unsubA = onSnapshot(aQ, (snap) => {
+            setStats(prev => ({ ...prev, attendanceToday: snap.size }));
+        });
+
+        return () => {
+            unsubT();
+            unsubStaff();
+            unsubS();
+            unsubC();
+            unsubA();
+        };
+    }, [userData]);
 
     const QuickAction = ({ title, icon: Icon, color, onPress }) => (
         <TouchableOpacity style={styles.actionBtn} onPress={onPress}>
@@ -85,9 +107,6 @@ const AdminDashboard = ({ navigation }) => {
                         <Text style={styles.adminName}>{userData?.name || 'College Admin'}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <TouchableOpacity style={styles.notifyBtn} onPress={() => navigation.navigate('AdminSettings')}>
-                            <SettingsIcon size={20} color="#fff" />
-                        </TouchableOpacity>
                         <TouchableOpacity style={[styles.notifyBtn, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]} onPress={() => logout()}>
                             <LogOut size={20} color="#fff" />
                         </TouchableOpacity>
@@ -96,7 +115,7 @@ const AdminDashboard = ({ navigation }) => {
 
                 <View style={styles.statsContainer}>
                     <View style={styles.statBox}>
-                        <Text style={styles.statVal}>{stats.teachers}</Text>
+                        <Text style={styles.statVal}>{stats.teachers + stats.staff}</Text>
                         <Text style={styles.statLab}>Faculty</Text>
                     </View>
                     <View style={styles.statDivider} />
@@ -126,7 +145,7 @@ const AdminDashboard = ({ navigation }) => {
                     <QuickAction title="Concerns" icon={ClipboardCheck} color="#ef4444" onPress={() => navigation.navigate('ConcernsManagement')} />
                     <QuickAction title="Timetable" icon={Calendar} color="#06b6d4" onPress={() => navigation.navigate('TimetableManagement')} />
                     <QuickAction title="Transport" icon={Bus} color="#f43f5e" onPress={() => navigation.navigate('TransportManagement')} />
-                    <QuickAction title="Settings" icon={SettingsIcon} color="#475569" onPress={() => navigation.navigate('AdminSettings')} />
+                    <QuickAction title="Feedback" icon={Star} color="#eab308" onPress={() => navigation.navigate('AdminFeedback')} />
                 </View>
 
                 <TouchableOpacity style={styles.attendanceSummary} onPress={() => navigation.navigate('AttendanceOverview')}>

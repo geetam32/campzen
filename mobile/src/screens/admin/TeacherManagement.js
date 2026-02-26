@@ -15,9 +15,9 @@ import {
     Platform
 } from 'react-native';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Trash2, Edit2, X, Search, UserCheck, ChevronRight, BookOpen, GraduationCap, ArrowLeft } from 'lucide-react-native';
+import { Plus, Trash2, Edit2, X, Search, UserCheck, ChevronRight, BookOpen, GraduationCap, ArrowLeft, Users } from 'lucide-react-native';
 
 const TeacherManagement = ({ navigation }) => {
     const { userData } = useAuth();
@@ -40,24 +40,54 @@ const TeacherManagement = ({ navigation }) => {
         subject_assignments: []
     });
 
-    const fetchData = async () => {
+    useEffect(() => {
         if (!userData?.college_id) return;
+
         setLoading(true);
-        try {
-            const tQ = query(collection(db, 'teachers'), where('college_id', '==', userData.college_id));
-            const cQ = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));
-            const sQ = query(collection(db, 'subjects'), where('college_id', '==', userData.college_id));
 
-            const [tS, cS, sS] = await Promise.all([getDocs(tQ), getDocs(cQ), getDocs(sQ)]);
+        const tQ = query(collection(db, 'teachers'), where('college_id', '==', userData.college_id));
+        const staffQ = query(collection(db, 'staff'), where('college_id', '==', userData.college_id));
+        const cQ = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));
+        const sQ = query(collection(db, 'subjects'), where('college_id', '==', userData.college_id));
 
-            setTeachers(tS.docs.map(d => ({ id: d.id, ...d.data() })));
-            setClasses(cS.docs.map(d => ({ id: d.id, ...d.data() })));
-            setSubjects(sS.docs.map(d => ({ id: d.id, ...d.data() })));
-        } catch (err) { console.error(err); }
-        finally { setLoading(false); }
-    };
+        let currentTeachers = [];
+        let currentStaff = [];
 
-    useEffect(() => { fetchData(); }, [userData]);
+        const updateMergedList = () => {
+            const merged = [...currentTeachers];
+            currentStaff.forEach(s => {
+                const exists = merged.find(m => m.id === s.id || (m.uid && s.uid && m.uid === s.uid));
+                if (!exists) merged.push(s);
+            });
+            setTeachers(merged);
+        };
+
+        const unsubTeachers = onSnapshot(tQ, (snapshot) => {
+            currentTeachers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            updateMergedList();
+            setLoading(false);
+        });
+
+        const unsubStaff = onSnapshot(staffQ, (snapshot) => {
+            currentStaff = snapshot.docs.map(d => ({ id: d.id, ...d.data(), origin: 'staff' }));
+            updateMergedList();
+        });
+
+        const unsubClasses = onSnapshot(cQ, (snapshot) => {
+            setClasses(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
+
+        const unsubSubjects = onSnapshot(sQ, (snapshot) => {
+            setSubjects(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
+
+        return () => {
+            unsubTeachers();
+            unsubStaff();
+            unsubClasses();
+            unsubSubjects();
+        };
+    }, [userData]);
 
     const handleSave = async () => {
         if (!formData.uid || !formData.name || !formData.email) {
@@ -86,7 +116,6 @@ const TeacherManagement = ({ navigation }) => {
                 await addDoc(collection(db, 'teachers'), { ...tData, status: 'active', created_at: new Date() });
             }
             setShowModal(false);
-            fetchData();
         } catch (err) { console.error(err); }
         finally { setSaving(false); }
     };
@@ -97,7 +126,6 @@ const TeacherManagement = ({ navigation }) => {
             {
                 text: "Delete", style: 'destructive', onPress: async () => {
                     await deleteDoc(doc(db, 'teachers', id));
-                    fetchData();
                 }
             }
         ]);
@@ -116,8 +144,8 @@ const TeacherManagement = ({ navigation }) => {
     const renderTeacher = ({ item }) => (
         <View style={styles.card}>
             <View style={styles.cardInfo}>
-                <Text style={styles.nameText}>{item.name}</Text>
-                <Text style={styles.uidText}>UID: {item.uid}</Text>
+                <Text style={styles.nameText}>{item.name || `Teacher ${item.uid || item.id}`}</Text>
+                <Text style={styles.uidText}>UID: {item.uid || 'N/A'}</Text>
                 {item.is_class_teacher && (
                     <View style={styles.ctBadge}><UserCheck size={10} color="#10b981" /><Text style={styles.ctText}>Class Teacher</Text></View>
                 )}
@@ -149,6 +177,28 @@ const TeacherManagement = ({ navigation }) => {
                     <Plus size={24} color="#fff" />
                 </TouchableOpacity>
             </View>
+            <TouchableOpacity
+                style={{ backgroundColor: '#f1f5f9', padding: 5, marginHorizontal: 20, borderRadius: 5, alignItems: 'center' }}
+                onPress={async () => {
+                    console.log("DEBUG: Fetching ALL teachers and staff...");
+                    setLoading(true);
+                    try {
+                        const [tS, staffS] = await Promise.all([
+                            getDocs(collection(db, 'teachers')),
+                            getDocs(collection(db, 'staff'))
+                        ]);
+                        console.log("DEBUG: Total in DB:", { teachers: tS.size, staff: staffS.size });
+                        const list = [
+                            ...tS.docs.map(d => ({ id: d.id, ...d.data(), origin: 'teachers' })),
+                            ...staffS.docs.map(d => ({ id: d.id, ...d.data(), origin: 'staff' }))
+                        ];
+                        setTeachers(list);
+                    } catch (e) { console.error(e); }
+                    finally { setLoading(false); }
+                }}
+            >
+                <Text style={{ fontSize: 10, color: '#64748b' }}>Debug: Fetch All (Ignore College Filter)</Text>
+            </TouchableOpacity>
 
             <View style={styles.searchSection}>
                 <View style={styles.searchBox}>
@@ -159,11 +209,23 @@ const TeacherManagement = ({ navigation }) => {
 
             {loading ? <ActivityIndicator size="large" color="#6366f1" style={{ marginTop: 40 }} /> : (
                 <FlatList
-                    data={teachers.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.uid.toLowerCase().includes(searchTerm.toLowerCase()))}
+                    data={teachers.filter(t =>
+                        (t.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                        (t.uid?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+                    )}
                     keyExtractor={item => item.id}
                     renderItem={renderTeacher}
                     contentContainerStyle={styles.list}
-                    ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>No teachers found</Text></View>}
+                    ListEmptyComponent={
+                        <View style={styles.empty}>
+                            <Users size={48} color="#cbd5e1" />
+                            <Text style={styles.emptyText}>No faculty records found</Text>
+                            <Text style={styles.emptySubText}>
+                                We couldn't find any teachers for college ID: {userData?.college_id}
+                            </Text>
+                            <Text style={styles.emptySubText}>Try adding a new teacher or check if the IDs in Firebase match exactly.</Text>
+                        </View>
+                    }
                 />
             )}
 
@@ -260,8 +322,9 @@ const styles = StyleSheet.create({
     ctText: { fontSize: 9, color: '#10b981', fontWeight: 'bold' },
     actions: { flexDirection: 'row', gap: 12 },
     actionBtn: { padding: 4 },
-    empty: { alignItems: 'center', marginTop: 100 },
-    emptyText: { color: '#cbd5e1' },
+    empty: { alignItems: 'center', marginTop: 100, gap: 12 },
+    emptyText: { color: '#64748b', fontSize: 16, fontWeight: 'bold' },
+    emptySubText: { color: '#94a3b8', fontSize: 13, textAlign: 'center', paddingHorizontal: 40 },
     mHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
     mTitle: { fontSize: 20, fontWeight: 'bold' },
     mBody: { padding: 20 },

@@ -70,7 +70,7 @@ const ConcernsManagement = ({ navigation }) => {
                 <Text style={styles.desc} numberOfLines={2}>{item.description}</Text>
                 <View style={styles.cardFooter}>
                     <Text style={styles.classText}>{cls ? `${cls.branch}-${cls.section}` : '-'}</Text>
-                    <Text style={styles.dateText}>{item.created_at?.toDate().toLocaleDateString()}</Text>
+                    <Text style={styles.dateText}>{item.created_at?.toDate ? item.created_at.toDate().toLocaleDateString() : 'Recent'}</Text>
                 </View>
             </TouchableOpacity>
         );

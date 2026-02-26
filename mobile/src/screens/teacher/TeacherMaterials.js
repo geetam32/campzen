@@ -10,13 +10,17 @@ import {
     Modal,
     Alert,
     FlatList,
-    Linking
+    Linking,
+    Platform
 } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { Plus, Edit2, Trash2, X, FileText, Download, Link, BookOpen, ArrowLeft } from 'lucide-react-native';
+import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { Plus, Edit2, Trash2, X, FileText, Download, Link, BookOpen, ArrowLeft, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser';
+import * as Sharing from 'expo-sharing';
 
 const TeacherMaterials = ({ navigation }) => {
     const { userData } = useAuth();
@@ -34,7 +38,8 @@ const TeacherMaterials = ({ navigation }) => {
         class_id: '',
         subject: '',
         file_url: '',
-        file_type: 'pdf'
+        file_type: 'pdf',
+        file_name: ''
     });
 
     const fetchData = async () => {
@@ -56,6 +61,27 @@ const TeacherMaterials = ({ navigation }) => {
         finally { setLoading(false); }
     };
 
+    const pickDocument = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: "*/*",
+                copyToCacheDirectory: true
+            });
+
+            if (!result.canceled) {
+                const file = result.assets[0];
+                setFormData({
+                    ...formData,
+                    file_url: file.uri,
+                    file_name: file.name,
+                    file_type: file.name.split('.').pop().toLowerCase()
+                });
+            }
+        } catch (err) {
+            console.error("Error picking document:", err);
+        }
+    };
+
     useEffect(() => { fetchData(); }, [userData]);
 
     const handleSave = async () => {
@@ -75,7 +101,7 @@ const TeacherMaterials = ({ navigation }) => {
                 file_url: formData.file_url,
                 file_type: formData.file_type,
                 uploaded_by: userData.uid,
-                created_at: new Date()
+                created_at: Timestamp.now()
             };
 
             if (editingMaterial) {
@@ -90,7 +116,7 @@ const TeacherMaterials = ({ navigation }) => {
                     content: `New study material for ${formData.subject} is available.`,
                     target_type: 'class',
                     target_id: formData.class_id,
-                    created_at: new Date(),
+                    created_at: Timestamp.now(),
                     author_name: userData.name
                 });
             }
@@ -112,6 +138,25 @@ const TeacherMaterials = ({ navigation }) => {
         ]);
     };
 
+    const handleAccess = async (item) => {
+        const url = item.file_url;
+        if (!url) { Alert.alert('Error', 'No file URL available.'); return; }
+        try {
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                await WebBrowser.openBrowserAsync(url);
+            } else if (url.startsWith('file://') || url.startsWith('content://')) {
+                const canShare = await Sharing.isAvailableAsync();
+                if (canShare) { await Sharing.shareAsync(url); }
+                else { Alert.alert('Info', 'Sharing is not available on this device.'); }
+            } else {
+                await Linking.openURL(url);
+            }
+        } catch (e) {
+            console.error('Error accessing material:', e);
+            Alert.alert('Error', 'Unable to open this file.');
+        }
+    };
+
     const renderMaterialItem = ({ item }) => {
         const cls = classes.find(c => c.id === item.class_id);
         return (
@@ -125,7 +170,7 @@ const TeacherMaterials = ({ navigation }) => {
                     {item.description ? <Text style={styles.descText} numberOfLines={1}>{item.description}</Text> : null}
                 </View>
                 <View style={styles.cardActions}>
-                    <TouchableOpacity style={styles.actionBtn} onPress={() => Linking.openURL(item.file_url)}>
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleAccess(item)}>
                         <Download size={18} color="#64748b" />
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.actionBtn} onPress={() => { setEditingMaterial(item); setFormData({ ...item }); setShowModal(true); }}>
@@ -155,6 +200,22 @@ const TeacherMaterials = ({ navigation }) => {
                     <Plus size={24} color="#fff" />
                 </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+                style={styles.uploadSection}
+                onPress={() => { setEditingMaterial(null); setFormData({ title: '', description: '', class_id: '', subject: '', file_url: '', file_type: 'pdf' }); setShowModal(true); }}
+            >
+                <View style={styles.uploadContent}>
+                    <View style={styles.uploadIconCircle}>
+                        <Plus size={24} color="#6366f1" />
+                    </View>
+                    <View>
+                        <Text style={styles.uploadTitle}>Add New Material</Text>
+                        <Text style={styles.uploadSub}>Tap to upload notes or resources</Text>
+                    </View>
+                </View>
+                <ChevronRight size={20} color="#cbd5e1" />
+            </TouchableOpacity>
 
             {loading ? <ActivityIndicator size="large" color="#6366f1" style={{ marginTop: 40 }} /> : (
                 <FlatList
@@ -199,7 +260,16 @@ const TeacherMaterials = ({ navigation }) => {
 
                         <View style={styles.row}>
                             <View style={{ flex: 1.5 }}>
-                                <Text style={styles.label}>File URL</Text>
+                                <Text style={styles.label}>File Attachment</Text>
+                                <TouchableOpacity style={styles.pickerBtn} onPress={pickDocument}>
+                                    <View style={styles.pickerContent}>
+                                        <FileText size={20} color="#6366f1" />
+                                        <Text style={styles.pickerText} numberOfLines={1}>
+                                            {formData.file_name || 'Choose from Device'}
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
+                                <Text style={styles.label}>Or Manual URL</Text>
                                 <TextInput style={styles.input} value={formData.file_url} onChangeText={t => setFormData({ ...formData, file_url: t })} placeholder="https://drive.google.com/..." />
                             </View>
                             <View style={{ flex: 1, marginLeft: 12 }}>
@@ -229,7 +299,28 @@ const styles = StyleSheet.create({
     pageTitle: { fontSize: 24, fontWeight: 'bold', color: '#1e293b' },
     subTitle: { fontSize: 13, color: '#64748b', marginTop: 2 },
     addBtn: { backgroundColor: '#6366f1', width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    list: { padding: 20 },
+    uploadSection: {
+        backgroundColor: '#fff',
+        marginHorizontal: 20,
+        padding: 16,
+        borderRadius: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        marginBottom: 8,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+    },
+    uploadContent: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    uploadIconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center' },
+    uploadTitle: { fontSize: 16, fontWeight: 'bold', color: '#1e293b' },
+    uploadSub: { fontSize: 12, color: '#64748b', marginTop: 2 },
+    list: { padding: 20, paddingTop: 10 },
     materialCard: { backgroundColor: '#fff', borderRadius: 16, padding: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0' },
     fileIcon: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
     cardInfo: { flex: 1, marginLeft: 12 },
@@ -257,6 +348,17 @@ const styles = StyleSheet.create({
     activeType: { backgroundColor: '#6366f1' },
     typeText: { fontSize: 10, fontWeight: 'bold', color: '#64748b' },
     activeTypeText: { color: '#fff' },
+    activeTypeText: { color: '#fff' },
+    pickerBtn: {
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderRadius: 12,
+        padding: 12,
+        borderStyle: 'dashed'
+    },
+    pickerContent: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    pickerText: { fontSize: 13, color: '#64748b', flex: 1 },
     saveBtn: { backgroundColor: '#6366f1', margin: 20, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
     saveBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
 });

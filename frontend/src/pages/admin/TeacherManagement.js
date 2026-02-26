@@ -27,11 +27,25 @@ const TeacherManagement = () => {
         if (!userData?.college_id) return;
         setLoading(true);
         try {
-            // Fetch teachers
-            const teachersQuery = query(collection(db, 'teachers'), where('college_id', '==', userData.college_id));
-            const teachersSnapshot = await getDocs(teachersQuery);
-            const teachersList = teachersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setTeachers(teachersList);
+            // Fetch teachers and staff
+            console.log("Web TeacherManagement: Fetching for college_id:", userData.college_id);
+            const tQ = query(collection(db, 'teachers'), where('college_id', '==', userData.college_id));
+            const staffQ = query(collection(db, 'staff'), where('college_id', '==', userData.college_id));
+
+            const [tS, staffS] = await Promise.all([getDocs(tQ), getDocs(staffQ)]);
+
+            console.log("Web TeacherManagement: Found", tS.size, "teachers and", staffS.size, "staff");
+
+            const tList = tS.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const sList = staffS.docs.map(doc => ({ id: doc.id, ...doc.data(), origin: 'staff' }));
+
+            const merged = [...tList];
+            sList.forEach(s => {
+                const exists = merged.find(m => m.id === s.id || (m.uid && s.uid && m.uid === s.uid));
+                if (!exists) merged.push(s);
+            });
+
+            setTeachers(merged);
 
             // Fetch classes for dropdown
             const classesQuery = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));

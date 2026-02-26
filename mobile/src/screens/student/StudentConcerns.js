@@ -76,7 +76,7 @@ const StudentConcerns = () => {
 
     const renderConcern = ({ item }) => {
         const style = getStatusStyle(item.status);
-        const date = item.created_at?.toDate().toLocaleDateString();
+        const date = item.created_at?.toDate ? item.created_at.toDate().toLocaleDateString() : 'Recent';
 
         return (
             <View style={styles.card}>

@@ -1,14 +1,117 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { db } from '../../firebase';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import {
     User, Mail, Phone, MapPin, Book, FileText,
     CreditCard, Settings, Camera, Download, Shield,
-    Trophy, Award, Heart, CheckCircle
+    Trophy, Award, Heart, CheckCircle, Plus, X, Eye, EyeOff
 } from 'lucide-react';
 
 const StudentProfile = () => {
     const { userData } = useAuth();
     const [activeTab, setActiveTab] = useState('contact');
+    const [showDocModal, setShowDocModal] = useState(false);
+    const [newDocName, setNewDocName] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Settings State
+    const [showPassModal, setShowPassModal] = useState(false);
+    const [passwords, setPasswords] = useState({ old: '', new: '', confirm: '' });
+    const [notificationsEnabled, setNotificationsEnabled] = useState(userData?.notifications_enabled !== false);
+    const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
+    const [showPass, setShowPass] = useState(false);
+
+    const handlePasswordUpdate = async (e) => {
+        e.preventDefault();
+        if (passwords.new !== passwords.confirm) {
+            alert("Passwords do not match!");
+            return;
+        }
+
+        setIsUpdatingSettings(true);
+        try {
+            const studentRef = doc(db, 'students', userData.id);
+            await updateDoc(studentRef, {
+                password: passwords.new,
+                must_change_password: false
+            });
+            alert("Password updated successfully!");
+            setShowPassModal(false);
+            setPasswords({ old: '', new: '', confirm: '' });
+        } catch (err) {
+            console.error("Error updating password:", err);
+            alert("Failed to update password.");
+        } finally {
+            setIsUpdatingSettings(false);
+        }
+    };
+
+    const toggleNotifications = async () => {
+        const newValue = !notificationsEnabled;
+        setNotificationsEnabled(newValue);
+        try {
+            const studentRef = doc(db, 'students', userData.id);
+            await updateDoc(studentRef, {
+                notifications_enabled: newValue
+            });
+        } catch (err) {
+            console.error("Error updating notifications:", err);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        const confirmed = window.confirm("Are you sure you want to delete your account? This action is IRREVERSIBLE and will remove all your academic data.");
+        if (confirmed) {
+            try {
+                const studentRef = doc(db, 'students', userData.id);
+                await updateDoc(studentRef, {
+                    status: 'deleted',
+                    deleted_at: new Date().toISOString()
+                });
+                alert("Account deletion requested. You will be logged out.");
+                window.location.reload(); // Simple way to reset state
+            } catch (err) {
+                console.error("Error deleting account:", err);
+                alert("Failed to request account deletion.");
+            }
+        }
+    };
+
+    const handleAddDocument = async (e) => {
+        e.preventDefault();
+        if (!newDocName.trim()) return;
+
+        setIsSaving(true);
+        try {
+            const studentRef = doc(db, 'students', userData.id);
+            const newDoc = {
+                name: newDocName,
+                type: 'PDF',
+                size: (Math.random() * 5 + 1).toFixed(1) + ' MB',
+                status: 'Self Uploaded',
+                added_at: new Date().toISOString()
+            };
+
+            await updateDoc(studentRef, {
+                documents: arrayUnion(newDoc)
+            });
+
+            // Note: In a real app, we'd want to refresh userData. 
+            // Since AuthContext listens to onAuthStateChanged, and we didn't update the auth user but the firestore doc,
+            // we might need to manually trigger a refresh or wait for the next fetch.
+            // For now, let's assume userData updates or we'll suggest a refresh.
+
+            alert('Document added successfully!');
+            setShowDocModal(false);
+            setNewDocName('');
+        } catch (err) {
+            console.error("Error adding document:", err);
+            alert("Failed to add document.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const tabs = [
         { id: 'contact', label: 'Contact Info', icon: User },
@@ -101,18 +204,33 @@ const StudentProfile = () => {
             case 'documents':
                 return (
                     <div className="profile-section fade-in">
-                        <h3 className="section-title">My Documents</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h3 className="section-title" style={{ margin: 0 }}>My Documents</h3>
+                            <button
+                                className="btn btn-primary btn-sm"
+                                onClick={() => setShowDocModal(true)}
+                                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                            >
+                                <Plus size={16} /> Add Document
+                            </button>
+                        </div>
                         <div className="documents-list">
-                            {['Aadhar Card', 'SSC Marksheet', 'Bonafide Certificate', 'Transfer Certificate'].map((doc, i) => (
-                                <div key={i} className="document-item-enhanced">
-                                    <div className="doc-icon"><FileText size={24} /></div>
-                                    <div className="doc-info">
-                                        <div className="doc-name">{doc}</div>
-                                        <div className="doc-meta">PDF • 2.5 MB • Verified ✓</div>
+                            {userData?.documents && userData.documents.length > 0 ? (
+                                userData.documents.map((doc, i) => (
+                                    <div key={i} className="document-item-enhanced">
+                                        <div className="doc-icon"><FileText size={24} /></div>
+                                        <div className="doc-info">
+                                            <div className="doc-name">{doc.name}</div>
+                                            <div className="doc-meta">{doc.type || 'PDF'} • {doc.size || '0.5 MB'} • {doc.status || 'Self Uploaded'} ✓</div>
+                                        </div>
+                                        <button className="btn btn-icon btn-secondary"><Download size={18} /></button>
                                     </div>
-                                    <button className="btn btn-icon btn-secondary"><Download size={18} /></button>
+                                ))
+                            ) : (
+                                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', borderRadius: '12px' }}>
+                                    No documents added yet. Click 'Add Document' to get started.
                                 </div>
-                            ))}
+                            )}
                         </div>
                     </div>
                 );
@@ -154,21 +272,24 @@ const StudentProfile = () => {
                                     <div className="setting-label">Change Password</div>
                                     <div className="setting-desc">Update your login password regularly</div>
                                 </div>
-                                <button className="btn btn-secondary btn-sm">Update</button>
+                                <button className="btn btn-secondary btn-sm" onClick={() => setShowPassModal(true)}>Update</button>
                             </div>
                             <div className="setting-item-modern">
                                 <div className="setting-info">
                                     <div className="setting-label">Email Notifications</div>
                                     <div className="setting-desc">Receive updates via {userData?.email}</div>
                                 </div>
-                                <div className="toggle-switch active"></div>
+                                <div
+                                    className={`toggle-switch ${notificationsEnabled ? 'active' : ''}`}
+                                    onClick={toggleNotifications}
+                                ></div>
                             </div>
                             <div className="setting-item-modern">
                                 <div className="setting-info">
                                     <div className="setting-label danger">Danger Zone</div>
                                     <div className="setting-desc">Request account deletion</div>
                                 </div>
-                                <button className="btn btn-danger btn-sm">Delete Account</button>
+                                <button className="btn btn-danger btn-sm" onClick={handleDeleteAccount}>Delete Account</button>
                             </div>
                         </div>
                     </div>
@@ -219,6 +340,95 @@ const StudentProfile = () => {
                     {renderContent()}
                 </div>
             </div>
+
+            {showDocModal && (
+                <div className="modal-overlay">
+                    <div className="modal" style={{ maxWidth: '400px' }}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">Add New Document</h3>
+                            <button className="modal-close" onClick={() => setShowDocModal(false)}><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleAddDocument}>
+                            <div className="modal-body" style={{ padding: '1.5rem' }}>
+                                <div className="form-group">
+                                    <label className="form-label">Document Name</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="e.g. Identity Proof"
+                                        required
+                                        value={newDocName}
+                                        onChange={(e) => setNewDocName(e.target.value)}
+                                    />
+                                </div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                                    Note: Documents are currently added as placeholders. Real file upload integration pending Storage setup.
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowDocModal(false)}>Cancel</button>
+                                <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                                    {isSaving ? 'Adding...' : 'Add Document'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showPassModal && (
+                <div className="modal-overlay">
+                    <div className="modal" style={{ maxWidth: '400px' }}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">Update Password</h3>
+                            <button className="modal-close" onClick={() => setShowPassModal(false)}><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handlePasswordUpdate}>
+                            <div className="modal-body" style={{ padding: '1.5rem' }}>
+                                <div className="form-group">
+                                    <label className="form-label">New Password</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            type={showPass ? "text" : "password"}
+                                            className="form-input"
+                                            required
+                                            value={passwords.new}
+                                            onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
+                                            style={{ paddingRight: '40px' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPass(!showPass)}
+                                            style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                                        >
+                                            {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="form-group" style={{ marginTop: '1rem' }}>
+                                    <label className="form-label">Confirm Password</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            type={showPass ? "text" : "password"}
+                                            className="form-input"
+                                            required
+                                            value={passwords.confirm}
+                                            onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+                                            style={{ paddingRight: '40px' }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowPassModal(false)}>Cancel</button>
+                                <button type="submit" className="btn btn-primary" disabled={isUpdatingSettings}>
+                                    {isUpdatingSettings ? 'Updating...' : 'Update Password'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             <style>{`
                 .profile-header-card {

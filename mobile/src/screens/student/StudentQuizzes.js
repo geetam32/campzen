@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, addDoc } from 'firebase/firestore';
 import { FileText, CheckCircle, X, Play, ChevronRight, Award } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -30,32 +30,37 @@ const StudentQuizzes = () => {
     const [score, setScore] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
-    const fetchData = async () => {
+    useEffect(() => {
         if (!userData?.college_id || !userData?.class_id) return;
         setLoading(true);
-        try {
-            const quizQuery = query(collection(db, 'quizzes'),
-                where('college_id', '==', userData.college_id),
-                where('class_id', '==', userData.class_id),
-                where('status', '==', 'active'));
-            const snapQ = await getDocs(quizQuery);
-            const quizList = snapQ.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setQuizzes(quizList);
 
+        const qQuery = query(collection(db, 'quizzes'),
+            where('college_id', '==', userData.college_id),
+            where('class_id', '==', userData.class_id),
+            where('status', '==', 'active'));
+
+        const attemptsQuery = query(collection(db, 'quiz_attempts'),
+            where('student_id', '==', userData.pin));
+
+        const unsubQuizzes = onSnapshot(qQuery, (snapQ) => {
+            setQuizzes(snapQ.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setLoading(false);
+        });
+
+        const unsubAttempts = onSnapshot(attemptsQuery, (snapA) => {
             const attMap = {};
-            for (const b of quizList) {
-                const attQ = query(collection(db, 'quiz_attempts'),
-                    where('quiz_id', '==', b.id),
-                    where('student_id', '==', userData.pin));
-                const snapA = await getDocs(attQ);
-                if (!snapA.empty) attMap[b.id] = snapA.docs[0].data();
-            }
+            snapA.docs.forEach(doc => {
+                const data = doc.data();
+                attMap[data.quiz_id] = data;
+            });
             setAttempts(attMap);
-        } catch (error) { console.error(error); }
-        finally { setLoading(false); }
-    };
+        });
 
-    useEffect(() => { fetchData(); }, [userData]);
+        return () => {
+            unsubQuizzes();
+            unsubAttempts();
+        };
+    }, [userData]);
 
     const startQuiz = async (quiz) => {
         try {
@@ -85,7 +90,6 @@ const StudentQuizzes = () => {
             });
             setScore(scorePerc);
             setSubmitted(true);
-            fetchData();
         } catch (error) { console.error(error); }
         finally { setSubmitting(false); }
     };

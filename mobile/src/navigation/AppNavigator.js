@@ -2,8 +2,9 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../context/AuthContext';
-import { ActivityIndicator, View, Image } from 'react-native';
-import { LayoutDashboard, Users, GraduationCap, Settings, ClipboardList, BookOpen, User, Bell } from 'lucide-react-native';
+import { ActivityIndicator, View, Image, StyleSheet, TouchableOpacity, Text, Dimensions, Platform, DeviceEventEmitter } from 'react-native';
+import { LayoutDashboard, Users, GraduationCap, Settings, ClipboardList, BookOpen, User, Bell, MessageSquarePlus, Home, Search, CirclePlus, MessageCircle } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Auth Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -14,12 +15,13 @@ import ClassManagement from '../screens/admin/ClassManagement';
 import TeacherManagement from '../screens/admin/TeacherManagement';
 import StudentManagement from '../screens/admin/StudentManagement';
 import SubjectManagement from '../screens/admin/SubjectManagement';
-import AdminSettings from '../screens/admin/AdminSettings';
 import ConcernsManagement from '../screens/admin/ConcernsManagement';
 import AdminNotices from '../screens/admin/AdminNotices';
 import AttendanceOverview from '../screens/admin/AttendanceOverview';
 import TimetableManagement from '../screens/admin/TimetableManagement';
 import TransportManagement from '../screens/admin/TransportManagement';
+import AdminFeedback from '../screens/admin/AdminFeedback';
+import AdminSettings from '../screens/admin/AdminSettings';
 
 // Teacher Screens
 import TeacherDashboard from '../screens/teacher/TeacherDashboard';
@@ -41,12 +43,22 @@ import StudentQuizzes from '../screens/student/StudentQuizzes';
 import StudentTimetable from '../screens/student/StudentTimetable';
 import StudentConcerns from '../screens/student/StudentConcerns';
 import BusTracking from '../screens/student/BusTracking';
+import StudentFeedback from '../screens/student/StudentFeedback';
 
 // Driver Screens
 import DriverDashboard from '../screens/driver/DriverDashboard';
 
+// AI ChatBot Component
+import AIChatBot from '../components/AIChatBot';
+
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+const LoadingScreen = () => (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#6366f1" />
+    </View>
+);
 
 const AdminStack = () => (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -55,12 +67,14 @@ const AdminStack = () => (
         <Stack.Screen name="TeacherManagement" component={TeacherManagement} />
         <Stack.Screen name="StudentManagement" component={StudentManagement} />
         <Stack.Screen name="SubjectManagement" component={SubjectManagement} />
-        <Stack.Screen name="AdminSettings" component={AdminSettings} />
+
         <Stack.Screen name="ConcernsManagement" component={ConcernsManagement} />
         <Stack.Screen name="AdminNotices" component={AdminNotices} />
         <Stack.Screen name="AttendanceOverview" component={AttendanceOverview} />
         <Stack.Screen name="TimetableManagement" component={TimetableManagement} />
         <Stack.Screen name="TransportManagement" component={TransportManagement} />
+        <Stack.Screen name="AdminFeedback" component={AdminFeedback} />
+        <Stack.Screen name="AdminSettings" component={AdminSettings} />
     </Stack.Navigator>
 );
 
@@ -77,27 +91,91 @@ const TeacherStack = () => (
     </Stack.Navigator>
 );
 
+const CustomTabBar = ({ state, descriptors, navigation }) => {
+    return (
+        <View style={styles.tabBarContainer}>
+            <LinearGradient
+                colors={['#fff', '#f8fafc']}
+                style={styles.floatingDock}
+            >
+                {state.routes.map((route, index) => {
+                    const { options } = descriptors[route.key];
+                    const isFocused = state.index === index;
+
+                    const onPress = () => {
+                        const event = navigation.emit({
+                            type: 'tabPress',
+                            target: route.key,
+                            canPreventDefault: true,
+                        });
+
+                        if (!isFocused && !event.defaultPrevented) {
+                            navigation.navigate(route.name);
+                        }
+                    };
+
+                    const Icon = options.tabBarIcon;
+
+                    if (route.name === 'AIChatPlaceholder') {
+                        return (
+                            <TouchableOpacity
+                                key={route.key}
+                                onPress={() => DeviceEventEmitter.emit('openAIChat')}
+                                style={styles.centerButtonContainer}
+                                activeOpacity={0.9}
+                            >
+                                <LinearGradient
+                                    colors={['#6366f1', '#4f46e5']}
+                                    style={styles.centerButton}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                >
+                                    <MessageCircle size={28} color="#fff" />
+                                </LinearGradient>
+                                <Text style={styles.centerButtonText}>AI Chat</Text>
+                            </TouchableOpacity>
+                        );
+                    }
+
+                    return (
+                        <TouchableOpacity
+                            key={route.key}
+                            onPress={onPress}
+                            style={styles.tabButton}
+                            activeOpacity={0.7}
+                        >
+                            <Icon color={isFocused ? '#6366f1' : '#94a3b8'} size={24} />
+                            <Text style={[styles.tabLabel, { color: isFocused ? '#6366f1' : '#94a3b8' }]}>
+                                {options.tabBarLabel}
+                            </Text>
+                            {isFocused && <View style={styles.activeIndicator} />}
+                        </TouchableOpacity>
+                    );
+                })}
+            </LinearGradient>
+        </View>
+    );
+};
+
 const StudentTabs = () => (
-    <Tab.Navigator screenOptions={{
-        headerShown: false,
-        tabBarStyle: { height: 65, paddingBottom: 10, paddingTop: 10, borderTopWidth: 0, elevation: 0, backgroundColor: '#fff' },
-        tabBarActiveTintColor: '#6366f1',
-        tabBarInactiveTintColor: '#94a3b8',
-    }}>
+    <Tab.Navigator
+        tabBar={(props) => <CustomTabBar {...props} />}
+        screenOptions={{ headerShown: false }}
+    >
         <Tab.Screen
             name="DashboardTab"
             component={StudentDashboard}
             options={{
                 tabBarLabel: 'Home',
-                tabBarIcon: ({ color }) => <LayoutDashboard size={22} color={color} />
+                tabBarIcon: ({ color }) => <Home size={24} color={color} />
             }}
         />
         <Tab.Screen
-            name="AttendanceTab"
-            component={StudentAttendance}
+            name="AIChatPlaceholder"
+            component={View} // This will be intercepted
             options={{
-                tabBarLabel: 'Attendance',
-                tabBarIcon: ({ color }) => <ClipboardList size={22} color={color} />
+                tabBarLabel: 'AI Chat',
+                tabBarIcon: ({ color }) => <MessageCircle size={24} color={color} />
             }}
         />
         <Tab.Screen
@@ -105,7 +183,7 @@ const StudentTabs = () => (
             component={StudentProfile}
             options={{
                 tabBarLabel: 'Profile',
-                tabBarIcon: ({ color }) => <User size={22} color={color} />
+                tabBarIcon: ({ color }) => <User size={24} color={color} />
             }}
         />
     </Tab.Navigator>
@@ -119,7 +197,9 @@ const StudentStack = () => (
         <Stack.Screen name="StudentQuizzes" component={StudentQuizzes} />
         <Stack.Screen name="StudentTimetable" component={StudentTimetable} />
         <Stack.Screen name="StudentConcerns" component={StudentConcerns} />
+        <Stack.Screen name="StudentAttendance" component={StudentAttendance} />
         <Stack.Screen name="BusTracking" component={BusTracking} />
+        <Stack.Screen name="StudentFeedback" component={StudentFeedback} />
     </Stack.Navigator>
 );
 
@@ -145,34 +225,96 @@ const AppNavigator = () => {
     }
 
     return (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {!user ? (
-                <Stack.Screen name="Login" component={LoginScreen} />
-            ) : (
-                <>
-                    {userData?.role === 'admin' && (
-                        <Stack.Screen name="AdminRoot" component={AdminStack} />
-                    )}
-                    {userData?.role === 'teacher' && (
-                        <Stack.Screen name="TeacherRoot" component={TeacherStack} />
-                    )}
-                    {userData?.role === 'student' && (
-                        <Stack.Screen name="StudentRoot" component={StudentStack} />
-                    )}
-                    {userData?.role === 'driver' && (
-                        <Stack.Screen name="DriverRoot" component={DriverStack} />
-                    )}
-                    {!userData?.role && (
-                        <Stack.Screen name="Loading" component={() => (
-                            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                                <ActivityIndicator size="large" color="#6366f1" />
-                            </View>
-                        )} />
-                    )}
-                </>
-            )}
-        </Stack.Navigator>
+        <View style={{ flex: 1 }}>
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+                {!user ? (
+                    <Stack.Screen name="Login" component={LoginScreen} />
+                ) : userData?.role === 'admin' ? (
+                    <Stack.Screen name="AdminRoot" component={AdminStack} />
+                ) : userData?.role === 'teacher' ? (
+                    <Stack.Screen name="TeacherRoot" component={TeacherStack} />
+                ) : userData?.role === 'student' ? (
+                    <Stack.Screen name="StudentRoot" component={StudentStack} />
+                ) : userData?.role === 'driver' ? (
+                    <Stack.Screen name="DriverRoot" component={DriverStack} />
+                ) : (
+                    <Stack.Screen name="Login" component={LoginScreen} />
+                )}
+            </Stack.Navigator>
+            {user && userData?.role === 'student' && <AIChatBot />}
+        </View>
     );
 };
+
+const styles = StyleSheet.create({
+    tabBarContainer: {
+        position: 'absolute',
+        bottom: Platform.OS === 'ios' ? 30 : 20,
+        left: 20,
+        right: 20,
+        height: 80,
+    },
+    floatingDock: {
+        flexDirection: 'row',
+        backgroundColor: '#fff',
+        borderRadius: 30,
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        paddingHorizontal: 10,
+        // Premium shadows
+        elevation: 15,
+        shadowColor: '#6366f1',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(99, 102, 241, 0.1)',
+    },
+    tabButton: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+    },
+    tabLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    centerButtonContainer: {
+        width: 80,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: -20,
+    },
+    centerButton: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#6366f1',
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 5,
+        shadowColor: '#6366f1',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+    },
+
+    centerButtonText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#6366f1',
+        marginTop: 6,
+    },
+    activeIndicator: {
+        position: 'absolute',
+        bottom: -10,
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: '#6366f1',
+    }
+});
 
 export default AppNavigator;

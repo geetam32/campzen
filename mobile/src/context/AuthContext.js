@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { auth, db } from '../api/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext();
@@ -57,95 +57,62 @@ export function AuthProvider({ children }) {
         return false;
     };
 
-    async function login(collegeCode, userId, password) {
-        const collegeQuery = query(collection(db, 'colleges'), where('code', '==', collegeCode.toUpperCase()));
+    async function login(collegeCode, userIdRaw, password) {
+        const userId = userIdRaw?.trim();
+        const collegeQuery = query(collection(db, 'colleges'), where('code', '==', collegeCode.toUpperCase().trim()));
         const collegeSnapshot = await getDocs(collegeQuery);
 
         if (collegeSnapshot.empty) {
             throw new Error('Invalid College Code');
         }
 
-        const collegeDoc = collegeSnapshot.docs[0];
-        const collegeId = collegeDoc.id;
-
+        const collegeId = collegeSnapshot.docs[0].id;
         let foundUserDoc = null;
         let userRole = null;
         let userEmail = null;
         let requiresFirebaseAuth = true;
 
-        // Check admins
-        const adminQuery = query(
-            collection(db, 'admins'),
-            where('college_id', '==', collegeId)
-        );
-        const adminSnapshot = await getDocs(adminQuery);
-        for (const docSnap of adminSnapshot.docs) {
-            const data = docSnap.data();
-            if (data.uid === userId || data.email === userId || data.name === userId) {
+        // Optimized Targeted Queries
+        const queries = [
+            // Admin (Email, UID, Name)
+            getDocs(query(collection(db, 'admins'), where('college_id', '==', collegeId), where('email', '==', userId))),
+            getDocs(query(collection(db, 'admins'), where('college_id', '==', collegeId), where('uid', '==', userId))),
+            getDocs(query(collection(db, 'admins'), where('college_id', '==', collegeId), where('name', '==', userId))),
+
+            // Teacher (Email, UID)
+            getDocs(query(collection(db, 'teachers'), where('college_id', '==', collegeId), where('email', '==', userId))),
+            getDocs(query(collection(db, 'teachers'), where('college_id', '==', collegeId), where('uid', '==', userId))),
+
+            // Staff (Email, UID)
+            getDocs(query(collection(db, 'staff'), where('college_id', '==', collegeId), where('email', '==', userId))),
+            getDocs(query(collection(db, 'staff'), where('college_id', '==', collegeId), where('uid', '==', userId))),
+
+            // Student (PIN, UID)
+            getDocs(query(collection(db, 'students'), where('college_id', '==', collegeId), where('pin', '==', userId))),
+            getDocs(query(collection(db, 'students'), where('college_id', '==', collegeId), where('uid', '==', userId))),
+
+            // Driver (Email, Username, UID)
+            getDocs(query(collection(db, 'drivers'), where('college_id', '==', collegeId), where('email', '==', userId))),
+            getDocs(query(collection(db, 'drivers'), where('college_id', '==', collegeId), where('username', '==', userId))),
+            getDocs(query(collection(db, 'drivers'), where('college_id', '==', collegeId), where('uid', '==', userId)))
+        ];
+
+        const results = await Promise.all(queries);
+
+        // Find which query returned a result
+        for (let i = 0; i < results.length; i++) {
+            if (!results[i].empty) {
+                const docSnap = results[i].docs[0];
+                const data = docSnap.data();
                 foundUserDoc = { id: docSnap.id, ...data, college_id: collegeId };
-                userRole = 'admin';
+
+                if (i <= 2) userRole = 'admin';
+                else if (i <= 6) userRole = 'teacher';
+                else if (i <= 8) userRole = 'student';
+                else userRole = 'driver';
+
                 userEmail = data.email;
                 break;
-            }
-        }
-
-        // Check teachers
-        if (!foundUserDoc) {
-            const teacherQuery = query(
-                collection(db, 'teachers'),
-                where('college_id', '==', collegeId)
-            );
-            const teacherSnapshot = await getDocs(teacherQuery);
-            for (const docSnap of teacherSnapshot.docs) {
-                const data = docSnap.data();
-                if (data.uid === userId || data.email === userId) {
-                    foundUserDoc = { id: docSnap.id, ...data, college_id: collegeId };
-                    userRole = 'teacher';
-                    userEmail = data.email;
-                    requiresFirebaseAuth = !!userEmail;
-                    break;
-                }
-            }
-        }
-
-        // Check students
-        if (!foundUserDoc) {
-            const studentQuery = query(
-                collection(db, 'students'),
-                where('college_id', '==', collegeId)
-            );
-            const studentSnapshot = await getDocs(studentQuery);
-            for (const docSnap of studentSnapshot.docs) {
-                const data = docSnap.data();
-                if (data.pin === userId || data.uid === userId) {
-                    foundUserDoc = { id: docSnap.id, ...data, college_id: collegeId };
-                    userRole = 'student';
-                    requiresFirebaseAuth = false;
-                    break;
-                }
-            }
-        }
-
-        // Check drivers
-        if (!foundUserDoc) {
-            const driverQuery = query(
-                collection(db, 'drivers'),
-                where('college_id', '==', collegeId)
-            );
-            const driverSnapshot = await getDocs(driverQuery);
-            for (const docSnap of driverSnapshot.docs) {
-                const data = docSnap.data();
-                if (
-                    data.uid?.toLowerCase() === userId.toLowerCase() ||
-                    data.email?.toLowerCase() === userId.toLowerCase() ||
-                    data.username?.toLowerCase() === userId.toLowerCase()
-                ) {
-                    foundUserDoc = { id: docSnap.id, ...data, college_id: collegeId };
-                    userRole = 'driver';
-                    userEmail = data.email;
-                    requiresFirebaseAuth = false;
-                    break;
-                }
             }
         }
 
@@ -153,17 +120,18 @@ export function AuthProvider({ children }) {
             throw new Error('User not found. Check your User ID and College Code.');
         }
 
-        if (requiresFirebaseAuth && !userEmail) {
-            throw new Error('This account is not fully registered. Please contact your administrator.');
-        }
+        // Determine auth type
+        requiresFirebaseAuth = (userRole === 'admin' || (userRole === 'teacher' && !!userEmail));
 
         if (requiresFirebaseAuth) {
-            // Firebase Auth login (admins, teachers with email)
             isLocalSession.current = false;
             await clearLocalSession();
             try {
                 const result = await signInWithEmailAndPassword(auth, userEmail, password);
-                // The onAuthStateChanged listener will handle setting the userData
+                // Set userData immediately — don't wait for onAuthStateChanged to find it
+                const userDataWithRole = { ...foundUserDoc, role: userRole };
+                setUser(result.user);
+                setUserData(userDataWithRole);
             } catch (authError) {
                 if (authError.code === 'auth/wrong-password' || authError.code === 'auth/invalid-credential') {
                     throw new Error('Incorrect password.');
@@ -171,16 +139,16 @@ export function AuthProvider({ children }) {
                 throw authError;
             }
         } else {
-            // Local auth (students, drivers) — persist to AsyncStorage
             const validPassword = foundUserDoc.password || (foundUserDoc.pin ? foundUserDoc.pin.toString() : '');
             if (validPassword !== password) {
                 throw new Error('Incorrect password.');
             }
-            const localUser = { uid: foundUserDoc.id, email: foundUserDoc.email, ...foundUserDoc };
+            const userDataWithRole = { ...foundUserDoc, role: userRole };
+            const localUser = { uid: foundUserDoc.id, email: foundUserDoc.email, ...userDataWithRole };
             isLocalSession.current = true;
             setUser(localUser);
-            setUserData(foundUserDoc);
-            await saveLocalSession(localUser, foundUserDoc);
+            setUserData(userDataWithRole);
+            await saveLocalSession(localUser, userDataWithRole);
         }
 
         return { userDoc: foundUserDoc, role: userRole, mustChangePassword: foundUserDoc.must_change_password };
@@ -196,85 +164,144 @@ export function AuthProvider({ children }) {
 
     useEffect(() => {
         let isMounted = true;
+        let userDataUnsubscribe = null;
 
-        const initAuth = async () => {
-            // First, try to restore a saved local session (student/driver)
-            const restoredLocal = await restoreLocalSession();
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            if (!isMounted) return;
 
-            // Then set up Firebase Auth listener for admin/teacher sessions
-            const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-                if (!isMounted) return;
+            // If a local session is active, don't let onAuthStateChanged override it
+            if (isLocalSession.current && !currentUser) {
+                return;
+            }
 
-                // If a local session is active, don't let onAuthStateChanged override it
-                if (isLocalSession.current) {
-                    return;
+            setLoading(true);
+            try {
+                // Clean up previous user data listener
+                if (userDataUnsubscribe) {
+                    userDataUnsubscribe();
+                    userDataUnsubscribe = null;
                 }
 
-                setLoading(true);
                 if (currentUser) {
-                    let userDoc = null;
+                    // Determine potential user collection
+                    let collections = [
+                        { name: 'admins', role: 'admin' },
+                        { name: 'teachers', role: 'teacher' },
+                        { name: 'staff', role: 'teacher' },
+                        { name: 'students', role: 'student' },
+                        { name: 'drivers', role: 'driver' },
+                        { name: 'super_admins', role: 'admin' }
+                    ];
 
-                    // Admin check
-                    const adminDoc = await getDoc(doc(db, 'admins', currentUser.uid));
-                    if (adminDoc.exists()) {
-                        userDoc = { id: adminDoc.id, ...adminDoc.data() };
-                    }
+                    // Try to find which collection the user belongs to
+                    let userFound = false;
+                    for (const colObj of collections) {
+                        try {
+                            // Method 1: Precise lookup by Document ID (Fastest)
+                            const docRef = doc(db, colObj.name, currentUser.uid);
+                            const snap = await getDoc(docRef);
 
-                    // Teacher check
-                    if (!userDoc) {
-                        const teacherDoc = await getDoc(doc(db, 'teachers', currentUser.uid));
-                        if (teacherDoc.exists()) {
-                            userDoc = { id: teacherDoc.id, ...teacherDoc.data() };
+                            let targetDocRef = null;
+                            let initialData = null;
+
+                            if (snap.exists()) {
+                                targetDocRef = docRef;
+                                initialData = {
+                                    id: snap.id,
+                                    ...snap.data(),
+                                    role: snap.data().role || colObj.role
+                                };
+                            } else if (currentUser.email) {
+                                // Method 2: Lookup by Email field (Fallback for custom doc IDs)
+                                const emailQuery = query(collection(db, colObj.name), where('email', '==', currentUser.email));
+                                const emailSnap = await getDocs(emailQuery);
+                                if (!emailSnap.empty) {
+                                    const d = emailSnap.docs[0];
+                                    targetDocRef = doc(db, colObj.name, d.id);
+                                    initialData = {
+                                        id: d.id,
+                                        ...d.data(),
+                                        role: d.data().role || colObj.role
+                                    };
+                                }
+                            }
+
+                            if (targetDocRef) {
+                                // IMPORTANT: Set data immediately before the listener fires
+                                setUserData(initialData);
+
+                                // Set up real-time listener for future changes
+                                userDataUnsubscribe = onSnapshot(targetDocRef, (docSnap) => {
+                                    if (isMounted && docSnap.exists()) {
+                                        setUserData({
+                                            id: docSnap.id,
+                                            ...docSnap.data(),
+                                            role: docSnap.data().role || colObj.role
+                                        });
+                                    }
+                                }, (error) => {
+                                    console.error(`Error in ${colObj.name} listener:`, error);
+                                });
+
+                                setUser(currentUser);
+                                userFound = true;
+                                break;
+                            }
+                        } catch (err) {
+                            console.error(`Error checking collection ${colObj.name}:`, err);
                         }
                     }
 
-                    // Student check
-                    if (!userDoc) {
-                        const studentDoc = await getDoc(doc(db, 'students', currentUser.uid));
-                        if (studentDoc.exists()) {
-                            userDoc = { id: studentDoc.id, ...studentDoc.data() };
-                        }
-                    }
-
-                    // Driver check
-                    if (!userDoc) {
-                        const driverDoc = await getDoc(doc(db, 'drivers', currentUser.uid));
-                        if (driverDoc.exists()) {
-                            userDoc = { id: driverDoc.id, ...driverDoc.data(), role: 'driver' };
-                        }
-                    }
-
-                    // Super Admin check
-                    if (!userDoc) {
-                        const superAdminDoc = await getDoc(doc(db, 'super_admins', currentUser.uid));
-                        if (superAdminDoc.exists()) {
-                            userDoc = { id: superAdminDoc.id, ...superAdminDoc.data(), role: 'super_admin' };
-                        }
-                    }
-
-                    if (isMounted) {
-                        setUser(currentUser);
-                        setUserData(userDoc);
-                    }
-                } else {
-                    if (isMounted && !isLocalSession.current) {
+                    if (!userFound) {
+                        console.warn("User authenticated but not found in any collection. Logging out...");
+                        await signOut(auth);
                         setUser(null);
                         setUserData(null);
                     }
+                } else if (!isLocalSession.current) {
+                    setUser(null);
+                    setUserData(null);
                 }
-                if (isMounted) {
-                    setLoading(false);
-                }
-            });
+            } catch (globalError) {
+                console.error("Critical error in onAuthStateChanged:", globalError);
+            } finally {
+                setLoading(false);
+            }
+        });
 
-            return unsubscribe;
+        // Handle local session sync (students/drivers)
+        const initLocalAuth = async () => {
+            const restored = await restoreLocalSession();
+            if (restored && isMounted) {
+                const sessionStr = await AsyncStorage.getItem(LOCAL_SESSION_KEY);
+                const session = JSON.parse(sessionStr);
+
+                // Find user collection for local user
+                let collections = ['students', 'drivers'];
+                for (const col of collections) {
+                    const docRef = doc(db, col, session.user.uid);
+                    const snap = await getDoc(docRef);
+                    if (snap.exists()) {
+                        // Set up listener for local user
+                        userDataUnsubscribe = onSnapshot(docRef, (docSnap) => {
+                            if (isMounted && docSnap.exists()) {
+                                const newData = { id: docSnap.id, ...docSnap.data() };
+                                setUserData(newData);
+                                saveLocalSession(session.user, newData);
+                            }
+                        });
+                        break;
+                    }
+                }
+            }
         };
 
-        let unsubscribePromise = initAuth();
+        initLocalAuth();
 
         return () => {
             isMounted = false;
-            unsubscribePromise.then(unsub => unsub && unsub());
+            unsubscribe();
+            if (userDataUnsubscribe) userDataUnsubscribe();
         };
     }, []);
 

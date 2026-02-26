@@ -230,6 +230,26 @@
     color: #6366f1;
 }
 
+.password-toggle {
+    position: absolute;
+    right: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #475569;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: color 0.2s;
+}
+
+.password-toggle:hover {
+    color: #6366f1;
+}
+
 .modern-btn-submit {
     margin-top: 1rem;
     padding: 1.125rem;

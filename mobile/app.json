@@ -29,7 +29,9 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "FOREGROUND_SERVICE"
+        "FOREGROUND_SERVICE",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -40,6 +42,9 @@
       "eas": {
         "projectId": "45b6a612-1ed1-40f3-a800-bd041c439c21"
       }
-    }
+    },
+    "plugins": [
+      "expo-web-browser"
+    ]
   }
 }

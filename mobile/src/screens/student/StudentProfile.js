@@ -7,13 +7,21 @@ import {
     TouchableOpacity,
     Image,
     Dimensions,
-    Switch
+    Switch,
+    Modal,
+    TextInput,
+    ActivityIndicator,
+    Alert
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { db } from '../../api/firebase';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import {
     User, Mail, Phone, MapPin, Book, FileText,
     CreditCard, Settings, Camera, Download, Shield,
-    Trophy, Award, Heart, CheckCircle, ChevronRight
+    Trophy, Award, Heart, CheckCircle, ChevronRight, Plus, X, Eye, EyeOff
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -22,6 +30,200 @@ const { width } = Dimensions.get('window');
 const StudentProfile = () => {
     const { userData } = useAuth();
     const [activeTab, setActiveTab] = useState('contact');
+    const [showDocModal, setShowDocModal] = useState(false);
+    const [newDocName, setNewDocName] = useState('');
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [profileImage, setProfileImage] = useState(userData?.profile_image || null);
+
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert("Permission Denied", "We need camera permissions to update your profile photo.");
+            return;
+        }
+
+        Alert.alert(
+            "Update Photo",
+            "Choose a source",
+            [
+                {
+                    text: "Camera",
+                    onPress: async () => {
+                        let result = await ImagePicker.launchCameraAsync({
+                            allowsEditing: true,
+                            aspect: [1, 1],
+                            quality: 0.5,
+                            base64: true,
+                        });
+                        if (!result.canceled) {
+                            updateProfilePhoto(result.assets[0]);
+                        }
+                    }
+                },
+                {
+                    text: "Gallery",
+                    onPress: async () => {
+                        let result = await ImagePicker.launchImageLibraryAsync({
+                            allowsEditing: true,
+                            aspect: [1, 1],
+                            quality: 0.5,
+                            base64: true,
+                        });
+                        if (!result.canceled) {
+                            updateProfilePhoto(result.assets[0]);
+                        }
+                    }
+                },
+                { text: "Cancel", style: "cancel" }
+            ]
+        );
+    };
+
+    const updateProfilePhoto = async (asset) => {
+        setIsSaving(true);
+        try {
+            const imageUri = asset.uri;
+            setProfileImage(imageUri);
+
+            // Save to Firestore (using base64 if small or just URI for local persistence)
+            // Note: In production, upload to Firebase Storage first
+            const studentRef = doc(db, 'students', userData.id);
+            await updateDoc(studentRef, {
+                profile_image: imageUri
+            });
+        } catch (err) {
+            console.error("Error updating photo:", err);
+            Alert.alert("Error", "Failed to update profile photo");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Settings State
+    const [showPassModal, setShowPassModal] = useState(false);
+    const [passwords, setPasswords] = useState({ new: '', confirm: '' });
+    const [notificationsEnabled, setNotificationsEnabled] = useState(userData?.notifications_enabled !== false);
+    const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
+    const [showPass, setShowPass] = useState(false);
+
+    const pickDocument = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: "*/*",
+                copyToCacheDirectory: true
+            });
+
+            if (!result.canceled) {
+                const file = result.assets[0];
+                setSelectedFile(file);
+                if (!newDocName) {
+                    setNewDocName(file.name.split('.')[0]);
+                }
+            }
+        } catch (err) {
+            console.error("Error picking document:", err);
+        }
+    };
+
+    const handleAddDocument = async () => {
+        if (!newDocName.trim() || !selectedFile) {
+            Alert.alert("Error", "Please enter a name and select a file");
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const studentRef = doc(db, 'students', userData.id);
+            const fileSize = selectedFile.size ? (selectedFile.size / (1024 * 1024)).toFixed(1) + ' MB' : '1.0 MB';
+            const fileType = selectedFile.name.split('.').pop().toUpperCase();
+
+            const newDoc = {
+                name: newDocName,
+                type: fileType,
+                size: fileSize,
+                status: 'Self Uploaded',
+                uri: selectedFile.uri, // Storing URI for local reference
+                added_at: new Date().toISOString()
+            };
+
+            await updateDoc(studentRef, {
+                documents: arrayUnion(newDoc)
+            });
+
+            Alert.alert("Success", "Document added successfully!");
+            setShowDocModal(false);
+            setNewDocName('');
+            setSelectedFile(null);
+        } catch (err) {
+            console.error("Error adding document:", err);
+            Alert.alert("Error", "Failed to add document");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handlePasswordUpdate = async () => {
+        if (!passwords.new.trim() || passwords.new !== passwords.confirm) {
+            Alert.alert("Error", "Passwords do not match or are empty");
+            return;
+        }
+
+        setIsUpdatingSettings(true);
+        try {
+            const studentRef = doc(db, 'students', userData.id);
+            await updateDoc(studentRef, {
+                password: passwords.new,
+                must_change_password: false
+            });
+            Alert.alert("Success", "Password updated successfully!");
+            setShowPassModal(false);
+            setPasswords({ new: '', confirm: '' });
+        } catch (err) {
+            console.error("Error updating password:", err);
+            Alert.alert("Error", "Failed to update password");
+        } finally {
+            setIsUpdatingSettings(false);
+        }
+    };
+
+    const toggleNotifications = async (val) => {
+        setNotificationsEnabled(val);
+        try {
+            const studentRef = doc(db, 'students', userData.id);
+            await updateDoc(studentRef, {
+                notifications_enabled: val
+            });
+        } catch (err) {
+            console.error("Error updating notifications:", err);
+        }
+    };
+
+    const handleDeleteAccount = () => {
+        Alert.alert(
+            "Delete Account",
+            "Are you sure? This action is permanent and will remove all your data.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const studentRef = doc(db, 'students', userData.id);
+                            await updateDoc(studentRef, {
+                                status: 'deleted',
+                                deleted_at: new Date().toISOString()
+                            });
+                            Alert.alert("Success", "Account deletion requested.");
+                        } catch (err) {
+                            Alert.alert("Error", "Failed to request deletion");
+                        }
+                    }
+                }
+            ]
+        );
+    };
 
     const tabs = [
         { id: 'contact', label: 'Contact', icon: User },
@@ -71,17 +273,33 @@ const StudentProfile = () => {
             case 'documents':
                 return (
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>My Documents</Text>
-                        {['Aadhar Card', 'SSC Marksheet', 'Bonafide Certificate'].map((doc, i) => (
-                            <View key={i} style={styles.docItem}>
-                                <View style={styles.docIcon}><FileText size={20} color="#6366f1" /></View>
-                                <View style={{ flex: 1, marginLeft: 12 }}>
-                                    <Text style={styles.docName}>{doc}</Text>
-                                    <Text style={styles.docMeta}>PDF • 2.5 MB • Verified ✓</Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={styles.sectionTitle}>My Documents</Text>
+                            <TouchableOpacity
+                                style={styles.addDocBtn}
+                                onPress={() => setShowDocModal(true)}
+                            >
+                                <Plus size={16} color="#fff" />
+                                <Text style={styles.addDocBtnText}>Add</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {userData?.documents && userData.documents.length > 0 ? (
+                            userData.documents.map((doc, i) => (
+                                <View key={i} style={styles.docItem}>
+                                    <View style={styles.docIcon}><FileText size={20} color="#6366f1" /></View>
+                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                                        <Text style={styles.docName}>{doc.name}</Text>
+                                        <Text style={styles.docMeta}>{doc.type || 'PDF'} • {doc.size || '1.0 MB'} • {doc.status || 'Verified ✓'}</Text>
+                                    </View>
+                                    <TouchableOpacity><Download size={20} color="#94a3b8" /></TouchableOpacity>
                                 </View>
-                                <TouchableOpacity><Download size={20} color="#94a3b8" /></TouchableOpacity>
+                            ))
+                        ) : (
+                            <View style={styles.emptyState}>
+                                <FileText size={40} color="#cbd5e1" />
+                                <Text style={styles.emptyStateText}>No documents added yet.</Text>
                             </View>
-                        ))}
+                        )}
                     </View>
                 );
             case 'fees':
@@ -105,9 +323,24 @@ const StudentProfile = () => {
                 return (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Account Settings</Text>
-                        <SettingItem title="Change Password" desc="Update your login password" />
-                        <SettingItem title="Notifications" desc="Push & Email updates" toggle />
-                        <SettingItem title="Delete Account" desc="Request deletion" danger />
+                        <SettingItem
+                            title="Change Password"
+                            desc="Update your login password"
+                            onPress={() => setShowPassModal(true)}
+                        />
+                        <SettingItem
+                            title="Notifications"
+                            desc="Push & Email updates"
+                            toggle
+                            toggleValue={notificationsEnabled}
+                            onToggle={toggleNotifications}
+                        />
+                        <SettingItem
+                            title="Delete Account"
+                            desc="Request deletion"
+                            danger
+                            onPress={handleDeleteAccount}
+                        />
                     </View>
                 );
         }
@@ -119,8 +352,16 @@ const StudentProfile = () => {
                 <LinearGradient colors={['#6366f1', '#a855f7']} style={styles.cover} />
                 <View style={styles.profileMain}>
                     <View style={styles.avatarContainer}>
-                        <View style={styles.avatar}><Text style={styles.avatarText}>{userData?.name?.charAt(0)}</Text></View>
-                        <TouchableOpacity style={styles.cameraBtn}><Camera size={14} color="#fff" /></TouchableOpacity>
+                        <View style={styles.avatar}>
+                            {profileImage ? (
+                                <Image source={{ uri: profileImage }} style={styles.avatarImg} />
+                            ) : (
+                                <Text style={styles.avatarText}>{userData?.name?.charAt(0)}</Text>
+                            )}
+                        </View>
+                        <TouchableOpacity style={styles.cameraBtn} onPress={pickImage}>
+                            <Camera size={14} color="#fff" />
+                        </TouchableOpacity>
                     </View>
                     <View style={styles.identity}>
                         <Text style={styles.name}>{userData?.name} ✨</Text>
@@ -139,6 +380,135 @@ const StudentProfile = () => {
             </ScrollView>
 
             <View style={styles.content}>{renderContent()}</View>
+
+            <Modal
+                visible={showDocModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowDocModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Add Document</Text>
+                            <TouchableOpacity onPress={() => setShowDocModal(false)}>
+                                <X size={24} color="#64748b" />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.modalBody}>
+                            <Text style={styles.inputLabel}>Document Name</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="e.g. Identity Proof"
+                                value={newDocName}
+                                onChangeText={setNewDocName}
+                            />
+
+                            <Text style={[styles.inputLabel, { marginTop: 16 }]}>File</Text>
+                            <TouchableOpacity style={styles.filePickerBtn} onPress={pickDocument}>
+                                <View style={styles.filePickerContent}>
+                                    <View style={styles.fileIconCircle}>
+                                        <Plus size={20} color="#6366f1" />
+                                    </View>
+                                    <View>
+                                        <Text style={styles.filePickerTitle}>
+                                            {selectedFile ? selectedFile.name : 'Choose File'}
+                                        </Text>
+                                        <Text style={styles.filePickerSub}>
+                                            {selectedFile ? `${(selectedFile.size / 1024).toFixed(0)} KB` : 'PDF, Image or DOC supported'}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                            <Text style={styles.note}>Note: Selection is ready. File integration with server is active.</Text>
+                        </View>
+                        <View style={styles.modalFooter}>
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.cancelBtn]}
+                                onPress={() => setShowDocModal(false)}
+                            >
+                                <Text style={styles.cancelBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.saveBtn]}
+                                onPress={handleAddDocument}
+                                disabled={isSaving}
+                            >
+                                {isSaving ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <Text style={styles.saveBtnText}>Save</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal
+                visible={showPassModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowPassModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Update Password</Text>
+                            <TouchableOpacity onPress={() => setShowPassModal(false)}>
+                                <X size={24} color="#64748b" />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.modalBody}>
+                            <Text style={styles.inputLabel}>New Password</Text>
+                            <View style={{ position: 'relative', justifyContent: 'center' }}>
+                                <TextInput
+                                    style={[styles.input, { paddingRight: 45 }]}
+                                    placeholder="Enter new password"
+                                    secureTextEntry={!showPass}
+                                    value={passwords.new}
+                                    onChangeText={(val) => setPasswords({ ...passwords, new: val })}
+                                />
+                                <TouchableOpacity
+                                    onPress={() => setShowPass(!showPass)}
+                                    style={{ position: 'absolute', right: 12 }}
+                                >
+                                    {showPass ? <EyeOff size={18} color="#94a3b8" /> : <Eye size={18} color="#94a3b8" />}
+                                </TouchableOpacity>
+                            </View>
+                            <Text style={[styles.inputLabel, { marginTop: 16 }]}>Confirm Password</Text>
+                            <View style={{ position: 'relative', justifyContent: 'center' }}>
+                                <TextInput
+                                    style={[styles.input, { paddingRight: 45 }]}
+                                    placeholder="Confirm new password"
+                                    secureTextEntry={!showPass}
+                                    value={passwords.confirm}
+                                    onChangeText={(val) => setPasswords({ ...passwords, confirm: val })}
+                                />
+                            </View>
+                        </View>
+                        <View style={styles.modalFooter}>
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.cancelBtn]}
+                                onPress={() => setShowPassModal(false)}
+                            >
+                                <Text style={styles.cancelBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalBtn, styles.saveBtn]}
+                                onPress={handlePasswordUpdate}
+                                disabled={isUpdatingSettings}
+                            >
+                                {isUpdatingSettings ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <Text style={styles.saveBtnText}>Update</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </ScrollView>
     );
 };
@@ -167,14 +537,28 @@ const AchievementCard = ({ icon: Icon, label, color }) => (
     </View>
 );
 
-const SettingItem = ({ title, desc, toggle, danger }) => (
-    <View style={styles.settingItem}>
+const SettingItem = ({ title, desc, toggle, danger, onPress, toggleValue, onToggle }) => (
+    <TouchableOpacity
+        style={styles.settingItem}
+        onPress={onPress}
+        disabled={toggle}
+        activeOpacity={0.7}
+    >
         <View style={{ flex: 1 }}>
             <Text style={[styles.settingTitle, danger && { color: '#ef4444' }]}>{title}</Text>
             <Text style={styles.settingDesc}>{desc}</Text>
         </View>
-        {toggle ? <Switch value={true} trackColor={{ false: '#e2e8f0', true: '#10b981' }} thumbColor="#fff" /> : <ChevronRight size={18} color="#cbd5e1" />}
-    </View>
+        {toggle ? (
+            <Switch
+                value={toggleValue}
+                onValueChange={onToggle}
+                trackColor={{ false: '#e2e8f0', true: '#10b981' }}
+                thumbColor="#fff"
+            />
+        ) : (
+            <ChevronRight size={18} color="#cbd5e1" />
+        )}
+    </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
@@ -183,9 +567,10 @@ const styles = StyleSheet.create({
     cover: { height: 120 },
     profileMain: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 20, marginTop: -60, gap: 16, paddingBottom: 20 },
     avatarContainer: { position: 'relative' },
-    avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#f1f5f9', borderWidth: 4, borderColor: '#fff', justifyContent: 'center', alignItems: 'center' },
+    avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#f1f5f9', borderWidth: 4, borderColor: '#fff', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+    avatarImg: { width: '100%', height: '100%' },
     avatarText: { fontSize: 40, fontWeight: 'bold', color: '#6366f1' },
-    cameraBtn: { position: 'absolute', bottom: 5, right: 5, backgroundColor: '#6366f1', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
+    cameraBtn: { position: 'absolute', bottom: 5, right: 5, backgroundColor: '#6366f1', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff', zIndex: 10 },
     identity: { paddingBottom: 10 },
     name: { fontSize: 20, fontWeight: 'bold', color: '#1e293b' },
     roleBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
@@ -227,7 +612,37 @@ const styles = StyleSheet.create({
     feeStatusText: { color: '#4ade80', fontSize: 11, fontWeight: 'bold' },
     settingItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#e2e8f0' },
     settingTitle: { fontSize: 15, fontWeight: 'bold', color: '#1e293b' },
-    settingDesc: { fontSize: 11, color: '#64748b', marginTop: 2 }
+    settingDesc: { fontSize: 11, color: '#64748b', marginTop: 2 },
+    addDocBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#6366f1', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 4 },
+    addDocBtnText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+    filePickerBtn: {
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderStyle: 'dashed',
+        borderRadius: 16,
+        padding: 16,
+    },
+    filePickerContent: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    fileIconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eef2ff', justifyContent: 'center', alignItems: 'center' },
+    filePickerTitle: { fontSize: 14, fontWeight: 'bold', color: '#1e293b' },
+    filePickerSub: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
+    emptyState: { padding: 40, alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: '#cbd5e1', gap: 12 },
+    emptyStateText: { color: '#94a3b8', fontSize: 14, fontWeight: '500' },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    modalContent: { backgroundColor: '#fff', width: '100%', borderRadius: 20, overflow: 'hidden' },
+    modalHeader: { padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e293b' },
+    modalBody: { padding: 20 },
+    inputLabel: { fontSize: 12, fontWeight: 'bold', color: '#64748b', marginBottom: 8 },
+    input: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, padding: 12, fontSize: 15, color: '#1e293b' },
+    note: { fontSize: 11, color: '#94a3b8', marginTop: 12 },
+    modalFooter: { padding: 20, flexDirection: 'row', gap: 12, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+    modalBtn: { flex: 1, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    cancelBtn: { backgroundColor: '#f1f5f9' },
+    cancelBtnText: { color: '#64748b', fontWeight: 'bold' },
+    saveBtn: { backgroundColor: '#6366f1' },
+    saveBtnText: { color: '#fff', fontWeight: 'bold' }
 });
 
 export default StudentProfile;

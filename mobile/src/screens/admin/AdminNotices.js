@@ -47,11 +47,16 @@ const AdminNotices = ({ navigation }) => {
         if (!userData?.college_id) return;
         setLoading(true);
         try {
-            const nQ = query(collection(db, 'notices'), where('college_id', '==', userData.college_id), orderBy('created_at', 'desc'));
+            const nQ = query(collection(db, 'notices'), where('college_id', '==', userData.college_id));
             const cQ = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));
 
             const [nS, cS] = await Promise.all([getDocs(nQ), getDocs(cQ)]);
-            setNotices(nS.docs.map(d => ({ id: d.id, ...d.data() })));
+
+            // Sort in-memory instead of query to avoid index requirement
+            const noticesList = nS.docs.map(d => ({ id: d.id, ...d.data() }));
+            noticesList.sort((a, b) => (b.created_at?.toMillis() || 0) - (a.created_at?.toMillis() || 0));
+
+            setNotices(noticesList);
             setClasses(cS.docs.map(d => ({ id: d.id, ...d.data() })));
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
@@ -118,7 +123,7 @@ const AdminNotices = ({ navigation }) => {
                             ) : (
                                 <View style={styles.targetBadge}><GradIcon size={10} color="#64748b" /><Text style={styles.targetText}>{cls ? `${cls.branch}-${cls.section}` : '-'}</Text></View>
                             )}
-                            <Text style={styles.date}>{item.created_at?.toDate().toLocaleDateString()}</Text>
+                            <Text style={styles.date}>{item.created_at?.toDate ? item.created_at.toDate().toLocaleDateString() : 'Recent'}</Text>
                         </View>
                     </View>
                     <View style={styles.actions}>

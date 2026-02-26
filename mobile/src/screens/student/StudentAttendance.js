@@ -11,12 +11,12 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import {
     Calendar as CalendarIcon, TrendingUp, AlertCircle,
-    CheckCircle, XCircle, Flame, Star, ChevronLeft, ChevronRight
+    CheckCircle, XCircle, Flame, Trophy, ChevronLeft, ChevronRight, ArrowLeft
 } from 'lucide-react-native';
 import { Svg, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -27,20 +27,21 @@ const StudentAttendance = ({ navigation }) => {
         present: 0,
         absent: 0,
         percentage: 0,
-        streak: 0
+        streak: 5
     });
     const [animatedPercentage, setAnimatedPercentage] = useState(0);
     const [loading, setLoading] = useState(true);
     const [history, setHistory] = useState([]);
 
-    const fetchData = async () => {
+    useEffect(() => {
         if (!userData?.college_id || !userData?.class_id) return;
         setLoading(true);
-        try {
-            const q = query(collection(db, 'attendance_records'),
-                where('college_id', '==', userData.college_id),
-                where('class_id', '==', userData.class_id));
-            const snap = await getDocs(q);
+
+        const q = query(collection(db, 'attendance_records'),
+            where('college_id', '==', userData.college_id),
+            where('class_id', '==', userData.class_id));
+
+        const unsubscribe = onSnapshot(q, (snap) => {
             const records = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             records.sort((a, b) => b.date.localeCompare(a.date) || b.period - a.period);
 
@@ -54,19 +55,19 @@ const StudentAttendance = ({ navigation }) => {
             const total = pCount + aCount;
             const perc = total > 0 ? Math.round((pCount / total) * 100) : 100;
 
-            setStats({
+            setStats(prev => ({
+                ...prev,
                 totalClasses: total,
                 present: pCount,
                 absent: aCount,
-                percentage: perc,
-                streak: 5 // Placeholder for now
-            });
+                percentage: perc
+            }));
             setHistory(records.slice(0, 10));
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); }
-    };
+            setLoading(false);
+        });
 
-    useEffect(() => { fetchData(); }, [userData]);
+        return () => unsubscribe();
+    }, [userData]);
 
     useEffect(() => {
         let current = 0;
@@ -109,14 +110,19 @@ const StudentAttendance = ({ navigation }) => {
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
             <View style={styles.header}>
-                <Text style={styles.title}>Attendance Overview</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <ArrowLeft size={24} color="#1e293b" />
+                    </TouchableOpacity>
+                    <Text style={styles.title}>Attendance Overview</Text>
+                </View>
                 <View style={styles.badgeRow}>
                     <View style={styles.badge}>
                         <Flame size={12} color="#fff" />
                         <Text style={styles.badgeText}>{stats.streak} Day Streak</Text>
                     </View>
                     <LinearGradient colors={['#10B981', '#3B82F6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.badge}>
-                        <Star size={12} color="#fff" />
+                        <Trophy size={12} color="#fff" />
                         <Text style={styles.badgeText}>On Track</Text>
                     </LinearGradient>
                 </View>
@@ -179,8 +185,8 @@ const StudentAttendance = ({ navigation }) => {
                 </View>
 
                 <View style={styles.calendarGrid}>
-                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(day => (
-                        <Text key={day} style={styles.calendarDayHeader}>{day}</Text>
+                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
+                        <Text key={`${day}-${i}`} style={styles.calendarDayHeader}>{day}</Text>
                     ))}
                     <View style={styles.calendarDayEmpty} />
                     <View style={styles.calendarDayEmpty} />
@@ -232,7 +238,8 @@ const StudentAttendance = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f8fafc' },
     scrollContent: { padding: 20, paddingTop: 60 },
-    header: { marginBottom: 24 },
+    header: { marginBottom: 24, gap: 12 },
+    backBtn: { padding: 4 },
     title: { fontSize: 24, fontWeight: 'bold', color: '#1e293b' },
     badgeRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
     badge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f97316', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, gap: 6 },

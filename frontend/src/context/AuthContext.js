@@ -49,21 +49,20 @@ export function AuthProvider({ children }) {
             }
         }
 
-        // Check teachers
+        // Check teachers & staff
         if (!foundUserDoc) {
-            const teacherQuery = query(
-                collection(db, 'teachers'),
-                where('college_id', '==', collegeId)
-            );
-            const teacherSnapshot = await getDocs(teacherQuery);
-            for (const docSnap of teacherSnapshot.docs) {
+            const tQ = query(collection(db, 'teachers'), where('college_id', '==', collegeId));
+            const staffQ = query(collection(db, 'staff'), where('college_id', '==', collegeId));
+
+            const [tS, staffS] = await Promise.all([getDocs(tQ), getDocs(staffQ)]);
+            const allTeacherDocs = [...tS.docs, ...staffS.docs];
+
+            for (const docSnap of allTeacherDocs) {
                 const data = docSnap.data();
                 if (data.uid === userId || data.email === userId) {
                     foundUserDoc = { id: docSnap.id, ...data, college_id: collegeId };
                     userRole = 'teacher';
                     userEmail = data.email;
-                    // If teacher has an email, they should use Firebase Auth (like admins)
-                    // If they don't, they used local Firestore auth (usually legacy/seeded or specific config)
                     requiresFirebaseAuth = !!userEmail;
                     break;
                 }
@@ -146,6 +145,8 @@ export function AuthProvider({ children }) {
             }
 
             // Manually set state for non-Firebase auth users
+            console.log("Web AuthContext: Login successful. UserRole:", userRole);
+            console.log("Web AuthContext: userData college_id:", foundUserDoc.college_id);
             setUser({ uid: foundUserDoc.id, email: foundUserDoc.email, ...foundUserDoc });
             setUserData(foundUserDoc);
         }
@@ -189,11 +190,16 @@ export function AuthProvider({ children }) {
                     userDoc = { id: adminDoc.id, ...adminDoc.data() };
                 }
 
-                // Check teachers
+                // Check teachers & staff
                 if (!userDoc) {
                     const teacherDoc = await getDoc(doc(db, 'teachers', currentUser.uid));
                     if (teacherDoc.exists()) {
                         userDoc = { id: teacherDoc.id, ...teacherDoc.data() };
+                    } else {
+                        const staffDoc = await getDoc(doc(db, 'staff', currentUser.uid));
+                        if (staffDoc.exists()) {
+                            userDoc = { id: staffDoc.id, ...staffDoc.data() };
+                        }
                     }
                 }
 

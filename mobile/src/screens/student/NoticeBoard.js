@@ -9,7 +9,7 @@ import {
     FlatList
 } from 'react-native';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { Megaphone, Users, GraduationCap, Clock, AlertCircle, Calendar } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,22 +19,39 @@ const NoticeBoard = () => {
     const [notices, setNotices] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const fetchData = async () => {
+    useEffect(() => {
         if (!userData?.college_id || !userData?.class_id) return;
-        setLoading(true);
-        try {
-            const collageQ = query(collection(db, 'notices'), where('college_id', '==', userData.college_id), where('target_type', '==', 'college'));
-            const classQ = query(collection(db, 'notices'), where('college_id', '==', userData.college_id), where('target_type', '==', 'class'), where('target_class_id', '==', userData.class_id));
 
-            const [cSnap, clSnap] = await Promise.all([getDocs(collageQ), getDocs(classQ)]);
-            const all = [...cSnap.docs.map(d => ({ id: d.id, ...d.data() })), ...clSnap.docs.map(d => ({ id: d.id, ...d.data() }))];
+        setLoading(true);
+
+        const collageQ = query(collection(db, 'notices'), where('college_id', '==', userData.college_id), where('target_type', '==', 'college'));
+        const classQ = query(collection(db, 'notices'), where('college_id', '==', userData.college_id), where('target_type', '==', 'class'), where('target_class_id', '==', userData.class_id));
+
+        let collegeNotices = [];
+        let classNotices = [];
+
+        const updateNotices = () => {
+            const all = [...collegeNotices, ...classNotices];
             all.sort((a, b) => (b.created_at?.toMillis() || 0) - (a.created_at?.toMillis() || 0));
             setNotices(all);
-        } catch (err) { console.error(err); }
-        finally { setLoading(false); }
-    };
+            setLoading(false);
+        };
 
-    useEffect(() => { fetchData(); }, [userData]);
+        const unsubCollege = onSnapshot(collageQ, (snap) => {
+            collegeNotices = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            updateNotices();
+        });
+
+        const unsubClass = onSnapshot(classQ, (snap) => {
+            classNotices = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            updateNotices();
+        });
+
+        return () => {
+            unsubCollege();
+            unsubClass();
+        };
+    }, [userData]);
 
     const getTypeColor = (type) => {
         switch (type) {
@@ -45,8 +62,8 @@ const NoticeBoard = () => {
     };
 
     const renderNotice = ({ item }) => {
-        const date = item.created_at?.toDate().toLocaleDateString();
-        const time = item.created_at?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const date = item.created_at?.toDate ? item.created_at.toDate().toLocaleDateString() : 'Recent';
+        const time = item.created_at?.toDate ? item.created_at.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
         const typeColor = getTypeColor(item.type);
 
         return (
@@ -93,8 +110,6 @@ const NoticeBoard = () => {
                     renderItem={renderNotice}
                     contentContainerStyle={styles.list}
                     ListEmptyComponent={<View style={styles.empty}><Megaphone size={48} color="#cbd5e1" /><Text style={styles.emptyText}>No notices today</Text></View>}
-                    refreshing={loading}
-                    onRefresh={fetchData}
                 />
             )}
         </View>

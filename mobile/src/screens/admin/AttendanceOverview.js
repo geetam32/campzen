@@ -11,7 +11,7 @@ import {
     Alert
 } from 'react-native';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { Search, Calendar, ChevronDown, ChevronUp, UserCheck, UserX, Clock, ArrowLeft } from 'lucide-react-native';
 
@@ -25,31 +25,33 @@ const AttendanceOverview = ({ navigation }) => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [expanded, setExpanded] = useState(null);
 
-    const fetchData = async () => {
+    useEffect(() => {
         if (!userData?.college_id) return;
-        setLoading(true);
-        try {
-            const clQ = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));
-            const clS = await getDocs(clQ);
-            setClasses(clS.docs.map(d => ({ id: d.id, ...d.data() })));
-        } catch (err) { console.error(err); }
-        finally { setLoading(false); }
-    };
 
-    const fetchAttendance = async () => {
+        const clQ = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));
+        const unsubClasses = onSnapshot(clQ, (snap) => {
+            setClasses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            setLoading(false);
+        });
+
+        return () => unsubClasses();
+    }, [userData]);
+
+    useEffect(() => {
         if (!userData?.college_id) return;
         setFetching(true);
-        try {
-            let q = query(collection(db, 'attendance_records'), where('college_id', '==', userData.college_id), where('date', '==', selectedDate));
-            if (selectedClass) q = query(collection(db, 'attendance_records'), where('college_id', '==', userData.college_id), where('class_id', '==', selectedClass), where('date', '==', selectedDate));
-            const s = await getDocs(q);
-            setRecords(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.period - b.period));
-        } catch (err) { console.error(err); }
-        finally { setFetching(false); }
-    };
 
-    useEffect(() => { fetchData(); }, [userData]);
-    useEffect(() => { fetchAttendance(); }, [selectedClass, selectedDate, userData]);
+        const attendanceQ = selectedClass
+            ? query(collection(db, 'attendance_records'), where('college_id', '==', userData.college_id), where('class_id', '==', selectedClass), where('date', '==', selectedDate))
+            : query(collection(db, 'attendance_records'), where('college_id', '==', userData.college_id), where('date', '==', selectedDate));
+
+        const unsubAttendance = onSnapshot(attendanceQ, (snap) => {
+            setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.period - b.period));
+            setFetching(false);
+        });
+
+        return () => unsubAttendance();
+    }, [selectedClass, selectedDate, userData]);
 
     const renderRecord = ({ item }) => {
         const cls = classes.find(c => c.id === item.class_id);
@@ -126,8 +128,6 @@ const AttendanceOverview = ({ navigation }) => {
                     renderItem={renderRecord}
                     contentContainerStyle={styles.list}
                     ListEmptyComponent={<View style={styles.empty}><Calendar size={48} color="#cbd5e1" /><Text style={styles.emptyText}>No records for this date</Text></View>}
-                    onRefresh={fetchAttendance}
-                    refreshing={fetching}
                 />
             )}
         </View>
