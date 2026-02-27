@@ -108,7 +108,8 @@ const LoginScreen = ({ navigation }) => {
             const result = await login(
                 formData.collegeCode,
                 formData.userId,
-                formData.password
+                formData.password,
+                selectedRole
             );
 
             const isAuthorized = result.role === selectedRole || (selectedRole === 'teacher' && result.role === 'driver');

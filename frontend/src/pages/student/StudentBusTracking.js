@@ -163,39 +163,55 @@ const StudentBusTracking = () => {
 
     return (
         <div className="dashboard">
-            <div className="page-header"><div><h1 className="page-title">🚌 Bus Tracking</h1><p className="page-description">View live bus locations</p></div></div>
-            <div className="bus-tracking-page">
-                <div className="bus-search-bar">
-                    <Search size={18} />
-                    <input type="text" placeholder="Search by bus number, route, or driver..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <div className="page-header">
+                <div>
+                    <h1 className="page-title">🚌 Bus Tracking</h1>
+                    <p className="page-description">View live bus locations</p>
                 </div>
+            </div>
 
-                <div className="bus-list">
-                    {filteredBuses.length === 0 ? (
-                        <div className="transport-empty"><Bus size={40} /><h4>No buses found</h4></div>
-                    ) : (
-                        filteredBuses.map(bus => (
-                            <div key={bus.id} className={`bus-list-item ${selectedBus?.id === bus.id ? 'selected' : ''}`} onClick={() => { setSelectedBus(bus); setShowInfoWindow(true); }}>
-                                <div className={`bus-list-icon ${bus.is_tracking ? 'active-icon' : 'inactive-icon'}`}>
-                                    <Bus size={24} />
-                                </div>
-                                <div className="bus-list-info">
-                                    <h4>Bus #{bus.bus_number}</h4>
-                                    <p>{bus.route_name} • {bus.assigned_driver_id ? getDriverName(bus.assigned_driver_id) : 'No driver'}</p>
-                                </div>
-                                <span className={`status-badge ${bus.is_tracking ? 'tracking' : 'inactive'}`}>
-                                    <span className="status-dot"></span>{bus.is_tracking ? 'Live' : 'Inactive'}
-                                </span>
+            <div className="card bus-tracking-unified-card">
+                <div className="bus-tracking-sidebar">
+                    <div className="bus-search-bar">
+                        <Search size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search bus, route..."
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="bus-list-compact">
+                        {filteredBuses.length === 0 ? (
+                            <div className="transport-empty">
+                                <Bus size={30} />
+                                <p>No buses found</p>
                             </div>
-                        ))
-                    )}
+                        ) : (
+                            filteredBuses.map(bus => (
+                                <div
+                                    key={bus.id}
+                                    className={`bus-compact-item ${selectedBus?.id === bus.id ? 'selected' : ''}`}
+                                    onClick={() => { setSelectedBus(bus); setShowInfoWindow(true); }}
+                                >
+                                    <div className={`bus-status-indicator ${bus.is_tracking ? 'live' : ''}`}></div>
+                                    <div className="bus-compact-info">
+                                        <div className="bus-num">Bus #{bus.bus_number}</div>
+                                        <div className="bus-route">{bus.route_name}</div>
+                                    </div>
+                                    {bus.is_tracking && <span className="live-tag">LIVE</span>}
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
 
-                <div className="map-container">
+                <div className="bus-tracking-main">
                     {loadError ? (
                         <div className="map-placeholder">
                             <AlertCircle size={40} color="var(--accent-danger)" />
-                            <p>Error loading Google Maps. Check API Key or connectivity.</p>
+                            <p>Error loading Google Maps</p>
                         </div>
                     ) : !isLoaded ? (
                         <div className="map-placeholder">
@@ -203,7 +219,10 @@ const StudentBusTracking = () => {
                             <p>Loading Google Map...</p>
                         </div>
                     ) : !selectedBus ? (
-                        <div className="map-placeholder"><MapPin size={40} /><p>Select a bus to view its location</p></div>
+                        <div className="map-placeholder">
+                            <MapPin size={40} />
+                            <p>Select a bus from the list to track</p>
+                        </div>
                     ) : !busLocation ? (
                         <div className="bus-not-active-msg">
                             <AlertCircle size={40} />
@@ -212,7 +231,7 @@ const StudentBusTracking = () => {
                         </div>
                     ) : (
                         <GoogleMap
-                            mapContainerStyle={mapContainerStyle}
+                            mapContainerStyle={{ width: '100%', height: '100%' }}
                             center={busLocation}
                             zoom={15}
                             options={mapOptions}
@@ -244,6 +263,118 @@ const StudentBusTracking = () => {
                     )}
                 </div>
             </div>
+
+            <style>{`
+                .bus-tracking-unified-card {
+                    display: grid;
+                    grid-template-columns: 320px 1fr;
+                    height: 600px;
+                    padding: 0 !important;
+                    overflow: hidden;
+                    background: var(--bg-card);
+                }
+
+                .bus-tracking-sidebar {
+                    border-right: 1px solid var(--border-color);
+                    display: flex;
+                    flex-direction: column;
+                    background: var(--bg-primary);
+                }
+
+                .bus-tracking-sidebar .bus-search-bar {
+                    padding: 1.25rem;
+                    border-bottom: 1px solid var(--border-color);
+                }
+
+                .bus-list-compact {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 0.5rem;
+                }
+
+                .bus-compact-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    padding: 1rem;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    margin-bottom: 0.25rem;
+                    position: relative;
+                }
+
+                .bus-compact-item:hover {
+                    background: var(--bg-tertiary);
+                }
+
+                .bus-compact-item.selected {
+                    background: rgba(124, 58, 237, 0.08);
+                    border: 1px solid rgba(124, 58, 237, 0.2);
+                }
+
+                .bus-status-indicator {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: var(--text-placeholder);
+                    flex-shrink: 0;
+                }
+
+                .bus-status-indicator.live {
+                    background: var(--accent-success);
+                    box-shadow: 0 0 8px var(--accent-success);
+                }
+
+                .bus-compact-info {
+                    flex: 1;
+                    min-width: 0;
+                }
+
+                .bus-num {
+                    font-weight: 700;
+                    font-size: 0.95rem;
+                    color: var(--text-primary);
+                }
+
+                .bus-route {
+                    font-size: 0.8rem;
+                    color: var(--text-muted);
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .live-tag {
+                    font-size: 10px;
+                    font-weight: 800;
+                    color: var(--accent-success);
+                    background: rgba(16, 185, 129, 0.1);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                }
+
+                .bus-tracking-main {
+                    position: relative;
+                    background: var(--bg-tertiary);
+                }
+
+                @media (max-width: 900px) {
+                    .bus-tracking-unified-card {
+                        grid-template-columns: 1fr;
+                        height: auto;
+                        min-height: 800px;
+                    }
+                    .bus-tracking-sidebar {
+                        border-right: none;
+                        border-bottom: 1px solid var(--border-color);
+                        height: 350px;
+                    }
+                    .bus-tracking-main {
+                        height: 450px;
+                    }
+                }
+            `}</style>
         </div>
     );
 };

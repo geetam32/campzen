@@ -30,6 +30,7 @@ import TeacherTimetable from '../screens/teacher/TeacherTimetable';
 import TeacherMaterials from '../screens/teacher/TeacherMaterials';
 import TeacherQuizzes from '../screens/teacher/TeacherQuizzes';
 import StudentTracker from '../screens/teacher/StudentTracker';
+import ExamMarks from '../screens/teacher/ExamMarks';
 import TeacherNotices from '../screens/teacher/TeacherNotices';
 import BusSharing from '../screens/teacher/BusSharing';
 
@@ -50,6 +51,10 @@ import DriverDashboard from '../screens/driver/DriverDashboard';
 
 // AI ChatBot Component
 import AIChatBot from '../components/AIChatBot';
+
+// New Screens
+import MyTopics from '../screens/teacher/MyTopics';
+import DailyReview from '../screens/student/DailyReview';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -78,6 +83,8 @@ const AdminStack = () => (
     </Stack.Navigator>
 );
 
+
+
 const TeacherStack = () => (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="TeacherDashboard" component={TeacherDashboard} />
@@ -86,8 +93,9 @@ const TeacherStack = () => (
         <Stack.Screen name="Materials" component={TeacherMaterials} />
         <Stack.Screen name="Quizzes" component={TeacherQuizzes} />
         <Stack.Screen name="Tracker" component={StudentTracker} />
+        <Stack.Screen name="ExamMarks" component={ExamMarks} />
+        <Stack.Screen name="MyTopics" component={MyTopics} />
         <Stack.Screen name="Notices" component={TeacherNotices} />
-        <Stack.Screen name="BusSharing" component={BusSharing} />
     </Stack.Navigator>
 );
 
@@ -189,6 +197,8 @@ const StudentTabs = () => (
     </Tab.Navigator>
 );
 
+
+
 const StudentStack = () => (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="StudentMain" component={StudentTabs} />
@@ -198,6 +208,7 @@ const StudentStack = () => (
         <Stack.Screen name="StudentTimetable" component={StudentTimetable} />
         <Stack.Screen name="StudentConcerns" component={StudentConcerns} />
         <Stack.Screen name="StudentAttendance" component={StudentAttendance} />
+        <Stack.Screen name="DailyReview" component={DailyReview} />
         <Stack.Screen name="BusTracking" component={BusTracking} />
         <Stack.Screen name="StudentFeedback" component={StudentFeedback} />
     </Stack.Navigator>

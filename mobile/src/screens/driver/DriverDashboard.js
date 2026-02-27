@@ -6,14 +6,14 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
-    SafeAreaView,
     ScrollView,
     Platform,
     StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { db } from '../../api/firebase';
-import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp, getDoc, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import {
     Bus,

@@ -57,7 +57,7 @@ export function AuthProvider({ children }) {
         return false;
     };
 
-    async function login(collegeCode, userIdRaw, password) {
+    async function login(collegeCode, userIdRaw, password, preferredRole = null) {
         const userId = userIdRaw?.trim();
         const collegeQuery = query(collection(db, 'colleges'), where('code', '==', collegeCode.toUpperCase().trim()));
         const collegeSnapshot = await getDocs(collegeQuery);
@@ -99,21 +99,37 @@ export function AuthProvider({ children }) {
 
         const results = await Promise.all(queries);
 
-        // Find which query returned a result
+        // Find which query returned a result, prioritize preferredRole
+        let bestMatchIdx = -1;
         for (let i = 0; i < results.length; i++) {
             if (!results[i].empty) {
-                const docSnap = results[i].docs[0];
-                const data = docSnap.data();
-                foundUserDoc = { id: docSnap.id, ...data, college_id: collegeId };
+                // If we found a match that aligns with user's selection, take it immediately
+                let currentMatchRole = '';
+                if (i <= 2) currentMatchRole = 'admin';
+                else if (i <= 6) currentMatchRole = 'teacher';
+                else if (i <= 8) currentMatchRole = 'student';
+                else currentMatchRole = 'driver';
 
-                if (i <= 2) userRole = 'admin';
-                else if (i <= 6) userRole = 'teacher';
-                else if (i <= 8) userRole = 'student';
-                else userRole = 'driver';
-
-                userEmail = data.email;
-                break;
+                if (preferredRole && currentMatchRole === preferredRole) {
+                    bestMatchIdx = i;
+                    break;
+                }
+                // Otherwise keep the first match we found
+                if (bestMatchIdx === -1) bestMatchIdx = i;
             }
+        }
+
+        if (bestMatchIdx !== -1) {
+            const docSnap = results[bestMatchIdx].docs[0];
+            const data = docSnap.data();
+            foundUserDoc = { id: docSnap.id, ...data, college_id: collegeId };
+
+            if (bestMatchIdx <= 2) userRole = 'admin';
+            else if (bestMatchIdx <= 6) userRole = 'teacher';
+            else if (bestMatchIdx <= 8) userRole = 'student';
+            else userRole = 'driver';
+
+            userEmail = data.email;
         }
 
         if (!foundUserDoc) {
@@ -121,7 +137,14 @@ export function AuthProvider({ children }) {
         }
 
         // Determine auth type
-        requiresFirebaseAuth = (userRole === 'admin' || (userRole === 'teacher' && !!userEmail));
+        // Drivers and Students NEVER use Firebase Auth (always local PIN/Password)
+        // Teachers only use Firebase Auth IF they have an email set
+        // Admins use Firebase Auth IF they have an email set
+        requiresFirebaseAuth = (
+            (userRole === 'admin' || userRole === 'teacher') &&
+            !!userEmail &&
+            userEmail.includes('@')
+        );
 
         if (requiresFirebaseAuth) {
             isLocalSession.current = false;
@@ -146,6 +169,14 @@ export function AuthProvider({ children }) {
             const userDataWithRole = { ...foundUserDoc, role: userRole };
             const localUser = { uid: foundUserDoc.id, email: foundUserDoc.email, ...userDataWithRole };
             isLocalSession.current = true;
+
+            // Sign out of Firebase if a local session is starting
+            try {
+                await signOut(auth);
+            } catch (signOutErr) {
+                console.log("No Firebase session to clear");
+            }
+
             setUser(localUser);
             setUserData(userDataWithRole);
             await saveLocalSession(localUser, userDataWithRole);
@@ -174,14 +205,13 @@ export function AuthProvider({ children }) {
                 return;
             }
 
-            setLoading(true);
-            try {
-                // Clean up previous user data listener
-                if (userDataUnsubscribe) {
-                    userDataUnsubscribe();
-                    userDataUnsubscribe = null;
-                }
+            // Clean up previous user data listener
+            if (userDataUnsubscribe) {
+                userDataUnsubscribe();
+                userDataUnsubscribe = null;
+            }
 
+            try {
                 if (currentUser) {
                     // Determine potential user collection
                     let collections = [
@@ -193,56 +223,50 @@ export function AuthProvider({ children }) {
                         { name: 'super_admins', role: 'admin' }
                     ];
 
-                    // Try to find which collection the user belongs to
+                    // Optimization: If userData is already set (from login process), skip the heavy search.
+                    if (userData && (userData.id === currentUser.uid || userData.email === currentUser.email)) {
+                        setUser(currentUser);
+                        const colObj = collections.find(c => c.role === userData.role) || collections[0];
+                        const targetDocRef = doc(db, colObj.name, userData.id);
+                        userDataUnsubscribe = onSnapshot(targetDocRef, (docSnap) => {
+                            if (isMounted && docSnap.exists()) {
+                                const data = docSnap.data();
+                                setUserData({ id: docSnap.id, ...data, role: data.role || colObj.role });
+                            }
+                        });
+                        setLoading(false);
+                        return;
+                    }
+
+                    setLoading(true);
                     let userFound = false;
                     for (const colObj of collections) {
                         try {
-                            // Method 1: Precise lookup by Document ID (Fastest)
                             const docRef = doc(db, colObj.name, currentUser.uid);
                             const snap = await getDoc(docRef);
-
                             let targetDocRef = null;
                             let initialData = null;
 
                             if (snap.exists()) {
                                 targetDocRef = docRef;
-                                initialData = {
-                                    id: snap.id,
-                                    ...snap.data(),
-                                    role: snap.data().role || colObj.role
-                                };
+                                initialData = { id: snap.id, ...snap.data(), role: snap.data().role || colObj.role };
                             } else if (currentUser.email) {
-                                // Method 2: Lookup by Email field (Fallback for custom doc IDs)
                                 const emailQuery = query(collection(db, colObj.name), where('email', '==', currentUser.email));
                                 const emailSnap = await getDocs(emailQuery);
                                 if (!emailSnap.empty) {
                                     const d = emailSnap.docs[0];
                                     targetDocRef = doc(db, colObj.name, d.id);
-                                    initialData = {
-                                        id: d.id,
-                                        ...d.data(),
-                                        role: d.data().role || colObj.role
-                                    };
+                                    initialData = { id: d.id, ...d.data(), role: d.data().role || colObj.role };
                                 }
                             }
 
                             if (targetDocRef) {
-                                // IMPORTANT: Set data immediately before the listener fires
                                 setUserData(initialData);
-
-                                // Set up real-time listener for future changes
                                 userDataUnsubscribe = onSnapshot(targetDocRef, (docSnap) => {
                                     if (isMounted && docSnap.exists()) {
-                                        setUserData({
-                                            id: docSnap.id,
-                                            ...docSnap.data(),
-                                            role: docSnap.data().role || colObj.role
-                                        });
+                                        setUserData({ id: docSnap.id, ...docSnap.data(), role: docSnap.data().role || colObj.role });
                                     }
-                                }, (error) => {
-                                    console.error(`Error in ${colObj.name} listener:`, error);
-                                });
-
+                                }, (error) => console.error(`Error in ${colObj.name} listener:`, error));
                                 setUser(currentUser);
                                 userFound = true;
                                 break;
@@ -285,7 +309,9 @@ export function AuthProvider({ children }) {
                         // Set up listener for local user
                         userDataUnsubscribe = onSnapshot(docRef, (docSnap) => {
                             if (isMounted && docSnap.exists()) {
-                                const newData = { id: docSnap.id, ...docSnap.data() };
+                                const data = docSnap.data();
+                                const forcedRole = col === 'drivers' ? 'driver' : 'student';
+                                const newData = { id: docSnap.id, ...data, role: data.role || forcedRole };
                                 setUserData(newData);
                                 saveLocalSession(session.user, newData);
                             }

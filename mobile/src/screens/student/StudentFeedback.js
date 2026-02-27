@@ -29,20 +29,16 @@ const StudentFeedback = ({ navigation }) => {
     useEffect(() => {
         if (!userData?.college_id) return;
 
-        const collegeId = userData.college_id;
-
-        // Fetch teachers and staff
+        // Fetch only teachers from staff collection
         const fetchTeachers = async () => {
             try {
-                const tQ = query(collection(db, 'teachers'), where('college_id', '==', collegeId));
-                const staffQ = query(collection(db, 'staff'), where('college_id', '==', collegeId));
-
-                const [tSnap, staffSnap] = await Promise.all([getDocs(tQ), getDocs(staffQ)]);
-
-                const tList = tSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'Teacher' }));
-                const staffList = staffSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'Staff' }));
-
-                setTeachers([...tList, ...staffList]);
+                const q = query(
+                    collection(db, 'staff'),
+                    where('college_id', '==', userData.college_id),
+                    where('staff_type', '==', 'teacher')
+                );
+                const snap = await getDocs(q);
+                setTeachers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             } catch (error) {
                 console.error("Error fetching teachers:", error);
             } finally {
@@ -65,12 +61,29 @@ const StudentFeedback = ({ navigation }) => {
 
         setSubmitting(true);
         try {
+            // Check for duplicates
+            const dupQ = query(
+                collection(db, 'teacher_feedback'),
+                where('studentId', '==', userData.id),
+                where('teacherId', '==', selectedTeacher.id)
+            );
+            const dupSnap = await getDocs(dupQ);
+
+            if (!dupSnap.empty) {
+                Alert.alert("Error", "Already submitted feedback for this teacher.");
+                setSubmitting(false);
+                return;
+            }
+
             await addDoc(collection(db, 'teacher_feedback'), {
                 collegeId: userData.college_id,
                 teacherId: selectedTeacher.id,
-                teacherName: selectedTeacher.name,
                 rating: rating,
-                remark: remark.trim(),
+                remark: remark.trim() || null,
+                studentId: userData.id,
+                studentPin: userData.pin,
+                studentName: userData.name,
+                classId: userData.class_id,
                 createdAt: serverTimestamp()
             });
 
@@ -130,8 +143,8 @@ const StudentFeedback = ({ navigation }) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                <View style={styles.infoBox}>
-                    <Text style={styles.infoText}>Your feedback is completely anonymous. We do not store any information that can identify you.</Text>
+                <View style={[styles.infoBox, { backgroundColor: '#fff7ed', borderColor: '#fed7aa' }]}>
+                    <Text style={[styles.infoText, { color: '#9a3412' }]}>Your feedback will be visible to the college administration along with your identity.</Text>
                 </View>
 
                 {/* Teacher Selection */}

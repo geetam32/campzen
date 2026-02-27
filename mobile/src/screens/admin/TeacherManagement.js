@@ -15,9 +15,9 @@ import {
     Platform
 } from 'react-native';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, Trash2, Edit2, X, Search, UserCheck, ChevronRight, BookOpen, GraduationCap, ArrowLeft, Users } from 'lucide-react-native';
+import { Plus, Trash2, Edit2, X, Search, UserCheck, ChevronRight, BookOpen, GraduationCap, ArrowLeft, Users, Award, Trophy, Star, Medal } from 'lucide-react-native';
 
 const TeacherManagement = ({ navigation }) => {
     const { userData } = useAuth();
@@ -29,6 +29,15 @@ const TeacherManagement = ({ navigation }) => {
     const [editingTeacher, setEditingTeacher] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [saving, setSaving] = useState(false);
+    const [showBadgeModal, setShowBadgeModal] = useState(false);
+    const [selectedTeacher, setSelectedTeacher] = useState(null);
+    const [awarding, setAwarding] = useState(false);
+
+    const TEACHER_BADGES = [
+        { name: "Best Teacher", points: 100, icon: Trophy, color: "#f59e0b" },
+        { name: "Active Teacher", points: 60, icon: Star, color: "#10b981" },
+        { name: "Dedicated Teacher", points: 50, icon: Medal, color: "#6366f1" }
+    ];
 
     const [formData, setFormData] = useState({
         uid: '',
@@ -141,6 +150,31 @@ const TeacherManagement = ({ navigation }) => {
         setFormData({ ...formData, subject_assignments: n });
     };
 
+    const handleAwardBadge = async (badge) => {
+        if (!selectedTeacher || awarding) return;
+        setAwarding(true);
+        try {
+            await addDoc(collection(db, 'badges'), {
+                badge_name: badge.name,
+                points: badge.points,
+                type: 'teacher',
+                recipient_id: selectedTeacher.uid || selectedTeacher.id,
+                recipient_name: selectedTeacher.name,
+                college_id: userData?.college_id,
+                awarded_by_id: userData?.uid,
+                awarded_by_name: userData?.name,
+                created_at: serverTimestamp()
+            });
+            setShowBadgeModal(false);
+            Alert.alert("Success", `${badge.name} awarded to ${selectedTeacher.name}!`);
+        } catch (error) {
+            console.error(error);
+            Alert.alert("Error", "Failed to award badge.");
+        } finally {
+            setAwarding(false);
+        }
+    };
+
     const renderTeacher = ({ item }) => (
         <View style={styles.card}>
             <View style={styles.cardInfo}>
@@ -151,6 +185,9 @@ const TeacherManagement = ({ navigation }) => {
                 )}
             </View>
             <View style={styles.actions}>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => { setSelectedTeacher(item); setShowBadgeModal(true); }}>
+                    <Award size={18} color="#f59e0b" />
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.actionBtn} onPress={() => { setEditingTeacher(item); setFormData({ ...item, password: '' }); setShowModal(true); }}>
                     <Edit2 size={18} color="#6366f1" />
                 </TouchableOpacity>
@@ -177,28 +214,6 @@ const TeacherManagement = ({ navigation }) => {
                     <Plus size={24} color="#fff" />
                 </TouchableOpacity>
             </View>
-            <TouchableOpacity
-                style={{ backgroundColor: '#f1f5f9', padding: 5, marginHorizontal: 20, borderRadius: 5, alignItems: 'center' }}
-                onPress={async () => {
-                    console.log("DEBUG: Fetching ALL teachers and staff...");
-                    setLoading(true);
-                    try {
-                        const [tS, staffS] = await Promise.all([
-                            getDocs(collection(db, 'teachers')),
-                            getDocs(collection(db, 'staff'))
-                        ]);
-                        console.log("DEBUG: Total in DB:", { teachers: tS.size, staff: staffS.size });
-                        const list = [
-                            ...tS.docs.map(d => ({ id: d.id, ...d.data(), origin: 'teachers' })),
-                            ...staffS.docs.map(d => ({ id: d.id, ...d.data(), origin: 'staff' }))
-                        ];
-                        setTeachers(list);
-                    } catch (e) { console.error(e); }
-                    finally { setLoading(false); }
-                }}
-            >
-                <Text style={{ fontSize: 10, color: '#64748b' }}>Debug: Fetch All (Ignore College Filter)</Text>
-            </TouchableOpacity>
 
             <View style={styles.searchSection}>
                 <View style={styles.searchBox}>
@@ -223,7 +238,6 @@ const TeacherManagement = ({ navigation }) => {
                             <Text style={styles.emptySubText}>
                                 We couldn't find any teachers for college ID: {userData?.college_id}
                             </Text>
-                            <Text style={styles.emptySubText}>Try adding a new teacher or check if the IDs in Firebase match exactly.</Text>
                         </View>
                     }
                 />
@@ -286,8 +300,8 @@ const TeacherManagement = ({ navigation }) => {
                                 </ScrollView>
                                 <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.miniChipScroll}>
                                     {classes.map(c => (
-                                        <TouchableOpacity key={c.id} style={[styles.miniChip, asgn.class_id === c.id && styles.activeMiniChip]} onPress={() => upAsgn(i, 'class_id', c.id)}>
-                                            <Text style={[styles.miniChipText, asgn.class_id === c.id && styles.activeMiniChipText]}>{c.branch}-{c.section}</Text>
+                                        <TouchableOpacity key={c.id} style={[styles.miniChip, asgn.class_id === c.id && styles.activeChip]} onPress={() => upAsgn(i, 'class_id', c.id)}>
+                                            <Text style={[styles.miniChipText, asgn.class_id === c.id && styles.activeChipText]}>{c.branch}-{c.section}</Text>
                                         </TouchableOpacity>
                                     ))}
                                 </ScrollView>
@@ -299,6 +313,48 @@ const TeacherManagement = ({ navigation }) => {
                         {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Faculty</Text>}
                     </TouchableOpacity>
                 </KeyboardAvoidingView>
+            </Modal>
+
+            {/* Badge Modal */}
+            <Modal visible={showBadgeModal} transparent animationType="fade">
+                <View style={styles.badgeModalOverlay}>
+                    <View style={styles.badgeModalContent}>
+                        <View style={styles.badgeModalHeader}>
+                            <Text style={styles.badgeModalTitle}>Award Faculty Badge</Text>
+                            <TouchableOpacity onPress={() => setShowBadgeModal(false)}>
+                                <X size={24} color="#1e293b" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.badgeModalSubtitle}>Recognize excellence for {selectedTeacher?.name}</Text>
+
+                        <View style={styles.badgeOptionGrid}>
+                            {TEACHER_BADGES.map((badge, idx) => (
+                                <TouchableOpacity
+                                    key={idx}
+                                    style={styles.teacherBadgeOption}
+                                    onPress={() => handleAwardBadge(badge)}
+                                >
+                                    <View style={[styles.teacherBadgeIconBox, { backgroundColor: `${badge.color}1a` }]}>
+                                        <badge.icon size={26} color={badge.color} />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.teacherBadgeName}>{badge.name}</Text>
+                                        <Text style={[styles.teacherBadgePoints, { color: badge.color }]}>+{badge.points} pts</Text>
+                                    </View>
+                                    <ChevronRight size={18} color="#94a3b8" />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        {awarding && (
+                            <View style={styles.badgeAwardingOverlay}>
+                                <ActivityIndicator size="large" color="#6366f1" />
+                                <Text style={styles.badgeAwardingText}>Awarding...</Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
             </Modal>
         </View>
     );
@@ -345,9 +401,23 @@ const styles = StyleSheet.create({
     activeMiniChip: { backgroundColor: '#6366f1', borderColor: '#6366f1' },
     miniChipText: { fontSize: 9, fontWeight: 'bold', color: '#64748b' },
     activeMiniChipText: { color: '#fff' },
-    remBtn: { position: 'absolute', top: -10, right: -10, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', padding: 2 },
+    remBtn: { position: 'absolute', top: -4, right: -4, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', padding: 2 },
     saveBtn: { backgroundColor: '#6366f1', margin: 20, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-    saveBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
+    saveBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+
+    // Badge Modal Styles
+    badgeModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+    badgeModalContent: { backgroundColor: '#fff', borderRadius: 24, padding: 24, position: 'relative' },
+    badgeModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    badgeModalTitle: { fontSize: 20, fontWeight: '800', color: '#1e293b' },
+    badgeModalSubtitle: { fontSize: 14, color: '#64748b', marginBottom: 24 },
+    badgeOptionGrid: { gap: 12 },
+    teacherBadgeOption: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#e2e8f0', gap: 16 },
+    teacherBadgeIconBox: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    teacherBadgeName: { fontSize: 15, fontWeight: '700', color: '#1e293b' },
+    teacherBadgePoints: { fontSize: 13, fontWeight: '800' },
+    badgeAwardingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.8)', justifyContent: 'center', alignItems: 'center', borderRadius: 24, zIndex: 10 },
+    badgeAwardingText: { marginTop: 12, fontWeight: '700', color: '#6366f1' }
 });
 
 export default TeacherManagement;

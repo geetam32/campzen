@@ -16,18 +16,18 @@ const AttendanceMarking = () => {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
-    const [dayRecords, setDayRecords] = useState({});
-    const [expandedPeriod, setExpandedPeriod] = useState(null);
-    const [summaryDate, setSummaryDate] = useState(new Date().toISOString().split('T')[0]); // Date for the summary table
+    const [topic, setTopic] = useState('');
+    const [subjects, setSubjects] = useState([]);
+    const [selectedSubject, setSelectedSubject] = useState('');
 
     const periods = [1, 2, 3, 4, 5, 6, 7, 8];
 
     useEffect(() => {
-        const fetchClasses = async () => {
+        const fetchClassesAndSubjects = async () => {
             if (!userData?.college_id) return;
 
             try {
-                // Fetch all classes teacher is assigned to via teaching_assignments or as class teacher
+                // Fetch all classes teacher is assigned to
                 const assignmentQuery = query(
                     collection(db, 'teaching_assignments'),
                     where('college_id', '==', userData.college_id),
@@ -56,12 +56,20 @@ const AttendanceMarking = () => {
                     .filter(cls => assignedClassIds.includes(cls.id));
 
                 setClasses(allClasses);
+
+                // Fetch all subjects for this college
+                const subjectsQuery = query(
+                    collection(db, 'subjects'),
+                    where('college_id', '==', userData.college_id)
+                );
+                const subjectsSnapshot = await getDocs(subjectsQuery);
+                setSubjects(subjectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             } catch (error) {
-                console.error('Error fetching classes:', error);
+                console.error('Error fetching classes and subjects:', error);
             }
         };
 
-        fetchClasses();
+        fetchClassesAndSubjects();
     }, [userData]);
 
     useEffect(() => {
@@ -95,6 +103,8 @@ const AttendanceMarking = () => {
                 if (!attSnapshot.empty) {
                     const record = { id: attSnapshot.docs[0].id, ...attSnapshot.docs[0].data() };
                     setExistingRecord(record);
+                    setTopic(record.topic || '');
+                    setSelectedSubject(record.subject_id || '');
 
                     // Pre-populate attendance
                     const attMap = {};
@@ -108,6 +118,8 @@ const AttendanceMarking = () => {
                     setAttendance(attMap);
                 } else {
                     setExistingRecord(null);
+                    setTopic('');
+                    setSelectedSubject('');
                     // Default all to present
                     const attMap = {};
                     studentsList.forEach(s => {
@@ -156,7 +168,7 @@ const AttendanceMarking = () => {
 
     const toggleAttendance = (pin) => {
         // Only allow editing if teacher is class teacher or admin, or if no existing record
-        if (existingRecord && !userData.is_class_teacher && userData.role !== 'admin') {
+        if (existingRecord && !userData.is_class_teacher && userData.role !== 'admin' && existingRecord.marked_by !== userData.uid) {
             return;
         }
 
@@ -183,6 +195,8 @@ const AttendanceMarking = () => {
                 .filter(([_, status]) => status === 'absent')
                 .map(([pin]) => pin);
 
+            const sub = subjects.find(s => s.id === selectedSubject);
+
             const recordData = {
                 college_id: userData.college_id,
                 class_id: selectedClass,
@@ -190,20 +204,22 @@ const AttendanceMarking = () => {
                 period: parseInt(selectedPeriod),
                 present,
                 absent,
-                present,
-                absent,
+                topic,
+                subject_id: selectedSubject,
+                subject_name: sub ? sub.name : 'General Class',
                 marked_by: userData.uid,
                 marked_by_name: userData.name || 'Unknown Teacher',
-                marked_at: new Date()
+                updated_at: new Date()
             };
 
             if (existingRecord) {
                 await updateDoc(doc(db, 'attendance_records', existingRecord.id), recordData);
             } else {
+                recordData.marked_at = new Date();
                 await addDoc(collection(db, 'attendance_records'), recordData);
             }
 
-            setMessage({ type: 'success', text: 'Attendance saved successfully!' });
+            setMessage({ type: 'success', text: 'Attendance and Topic saved successfully!' });
 
             // Refresh to show updated record
             setExistingRecord({ ...recordData, id: existingRecord?.id || 'new' });
@@ -252,6 +268,21 @@ const AttendanceMarking = () => {
                         </select>
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Subject</label>
+                        <select
+                            className="form-select"
+                            value={selectedSubject}
+                            onChange={(e) => setSelectedSubject(e.target.value)}
+                        >
+                            <option value="">Select Subject (Optional)</option>
+                            {subjects.map(sub => (
+                                <option key={sub.id} value={sub.id}>
+                                    {sub.name} {sub.code ? `(${sub.code})` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label">Date</label>
                         <input
                             type="date"
@@ -261,6 +292,20 @@ const AttendanceMarking = () => {
                         />
                     </div>
                 </div>
+
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                    <label className="form-label">Topic Covered</label>
+                    <textarea
+                        className="form-input"
+                        placeholder="What chapter/topic was taught in this session?"
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                        rows={3}
+                        disabled={!canEdit}
+                        style={{ resize: 'none' }}
+                    />
+                </div>
+
                 <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label">Period</label>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

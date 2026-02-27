@@ -14,7 +14,8 @@ import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firest
 import {
     Calendar, FileText, BookOpen, TrendingUp, TrendingDown,
     Activity, Clock, AlertTriangle, Download, ChevronRight, CheckCircle,
-    Flame, Trophy, Bell, Zap, PlayCircle, Megaphone, LogOut, Bus, Star
+    Flame, Trophy, Bell, Zap, PlayCircle, Megaphone, LogOut, Bus, Star,
+    Award, GraduationCap
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -30,6 +31,17 @@ const StudentDashboard = ({ navigation }) => {
     const [recentUpdates, setRecentUpdates] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [badges, setBadges] = useState([]);
+    const [leaderboard, setLeaderboard] = useState([]);
+    const [activeTab, setActiveTab] = useState('badges');
+    const [myPoints, setMyPoints] = useState(0);
+
+    const STUDENT_BADGES = [
+        { name: "Excellent Student", points: 50, icon: Trophy, color: "#f59e0b" },
+        { name: "Perfect Attendance", points: 30, icon: Star, color: "#10b981" },
+        { name: "Quiz Champion", points: 40, icon: Award, color: "#6366f1" },
+        { name: "Active Student", points: 20, icon: GraduationCap, color: "#8b5cf6" }
+    ];
 
     useEffect(() => {
         if (!userData?.college_id || !userData?.class_id) return;
@@ -68,11 +80,31 @@ const StudentDashboard = ({ navigation }) => {
             setRecentUpdates(filtered);
         });
 
+        const bQ = query(collection(db, 'badges'), where('college_id', '==', userData.college_id), where('type', '==', 'student'));
+        const unsubBadges = onSnapshot(bQ, (snap) => {
+            const allBadges = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setBadges(allBadges.filter(b => b.recipient_id === userData?.id || b.recipient_pin === userData?.pin));
+
+            // Leaderboard logic
+            const agg = {};
+            allBadges.forEach(b => {
+                const uid = b.recipient_id || b.recipient_pin;
+                if (!agg[uid]) agg[uid] = { name: b.recipient_name, points: 0, id: uid };
+                agg[uid].points += (b.points || 0);
+            });
+            const sorted = Object.values(agg).sort((a, b) => b.points - a.points);
+            setLeaderboard(sorted);
+
+            const mine = sorted.find(u => u.id === userData?.id || u.id === userData?.pin);
+            setMyPoints(mine?.points || 0);
+        });
+
         return () => {
             unsubMats();
             unsubQuizzes();
             unsubAttendance();
             unsubUpdates();
+            unsubBadges();
         };
     }, [userData]);
 
@@ -118,25 +150,39 @@ const StudentDashboard = ({ navigation }) => {
                 </TouchableOpacity>
             </View>
 
-            {/* Attendance Alert */}
-            <View style={[
-                styles.alertBox,
-                {
-                    backgroundColor: stats.attendance >= 75 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(234, 179, 8, 0.05)',
-                    borderLeftColor: stats.attendance >= 75 ? '#10B981' : '#EAB308'
-                }
-            ]}>
-                {stats.attendance >= 75 ? (
-                    <CheckCircle size={20} color="#10B981" />
-                ) : (
-                    <AlertTriangle size={20} color="#EAB308" />
-                )}
-                <Text style={styles.alertText}>
-                    {stats.attendance >= 75 ?
-                        "Great job! Your attendance is on track. 🌟" :
-                        "Heads up! Your attendance is below 75%."
+            {/* Attendance & Points Alert */}
+            <View style={styles.alertRow}>
+                <View style={[
+                    styles.alertBox,
+                    {
+                        flex: 1,
+                        backgroundColor: stats.attendance >= 75 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(234, 179, 8, 0.05)',
+                        borderLeftColor: stats.attendance >= 75 ? '#10B981' : '#EAB308',
+                        marginBottom: 0
                     }
-                </Text>
+                ]}>
+                    <Activity size={18} color={stats.attendance >= 75 ? "#10B981" : "#EAB308"} />
+                    <View>
+                        <Text style={styles.alertVal}>{stats.attendance}%</Text>
+                        <Text style={styles.alertTyp}>Attendance</Text>
+                    </View>
+                </View>
+
+                <View style={[
+                    styles.alertBox,
+                    {
+                        flex: 1,
+                        backgroundColor: 'rgba(99, 102, 241, 0.05)',
+                        borderLeftColor: '#6366f1',
+                        marginBottom: 0
+                    }
+                ]}>
+                    <Trophy size={18} color="#6366f1" />
+                    <View>
+                        <Text style={styles.alertVal}>{myPoints} pts</Text>
+                        <Text style={styles.alertTyp}>Merit Points</Text>
+                    </View>
+                </View>
             </View>
 
             {/* Quick Actions */}
@@ -147,6 +193,7 @@ const StudentDashboard = ({ navigation }) => {
                 <ActionBtn icon={Activity} label="Attendance" color={['#10B981', '#34D399']} onPress={() => navigation.navigate('StudentAttendance')} />
                 <ActionBtn icon={AlertTriangle} label="Concern" color={['#EF4444', '#F87171']} onPress={() => navigation.navigate('StudentConcerns')} />
                 <ActionBtn icon={Clock} label="Timetable" color={['#3B82F6', '#60A5FA']} onPress={() => navigation.navigate('StudentTimetable')} />
+                <ActionBtn icon={BookOpen} label="Daily Review" color={['#8B5CF6', '#A78BFA']} onPress={() => navigation.navigate('DailyReview')} />
                 <ActionBtn icon={Bus} label="Track Bus" color={['#6366f1', '#818cf8']} onPress={() => navigation.navigate('BusTracking')} />
 
                 <TouchableOpacity
@@ -172,8 +219,83 @@ const StudentDashboard = ({ navigation }) => {
                 </TouchableOpacity>
             </View>
 
+            {/* Achievements Section */}
+            <Text style={styles.sectionTitle}>Achievements</Text>
+            <View style={styles.achievementsCard}>
+                <View style={styles.achTabs}>
+                    <TouchableOpacity
+                        style={[styles.achTab, activeTab === 'badges' && styles.activeAchTab]}
+                        onPress={() => setActiveTab('badges')}
+                    >
+                        <Award size={16} color={activeTab === 'badges' ? '#6366f1' : '#94a3b8'} />
+                        <Text style={[styles.achTabText, activeTab === 'badges' && styles.activeAchTabText]}>My Badges</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.achTab, activeTab === 'leaderboard' && styles.activeAchTab]}
+                        onPress={() => setActiveTab('leaderboard')}
+                    >
+                        <TrendingUp size={16} color={activeTab === 'leaderboard' ? '#6366f1' : '#94a3b8'} />
+                        <Text style={[styles.achTabText, activeTab === 'leaderboard' && styles.activeAchTabText]}>Leaderboard</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {activeTab === 'badges' ? (
+                    <View style={styles.badgesView}>
+                        {badges.length === 0 ? (
+                            <View style={styles.emptyAch}>
+                                <Star size={32} color="#cbd5e1" />
+                                <Text style={styles.emptyAchText}>No badges earned yet</Text>
+                            </View>
+                        ) : (
+                            <View style={styles.badgesGrid}>
+                                {badges.map((b, i) => {
+                                    const def = STUDENT_BADGES.find(db => db.name === b.badge_name) || { icon: Award, color: '#94a3b8' };
+                                    return (
+                                        <View key={i} style={styles.badgeItem}>
+                                            <View style={[styles.badgeIconSmall, { backgroundColor: `${def.color}1a` }]}>
+                                                <def.icon size={20} color={def.color} />
+                                            </View>
+                                            <Text style={styles.badgeNameSmall} numberOfLines={1}>{b.badge_name}</Text>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        )}
+                    </View>
+                ) : (
+                    <View style={styles.leaderboardView}>
+                        {leaderboard.slice(0, 5).map((user, idx) => {
+                            const isMe = user.id === userData?.id || user.id === userData?.pin;
+                            return (
+                                <View key={idx} style={[styles.lbItem, isMe && styles.lbItemMe]}>
+                                    <View style={[styles.rankBadge, idx === 0 && styles.rank1, idx === 1 && styles.rank2, idx === 2 && styles.rank3]}>
+                                        <Text style={[styles.rankText, idx < 3 && styles.rankTextTop]}>{idx + 1}</Text>
+                                    </View>
+                                    <Text style={[styles.lbName, isMe && styles.lbNameMe]}>{user.name}</Text>
+                                    <Text style={styles.lbPoints}>{user.points} pts</Text>
+                                </View>
+                            );
+                        })}
+                        {leaderboard.length > 5 && !leaderboard.slice(0, 5).some(u => u.id === userData?.id || u.id === userData?.pin) && (
+                            <View style={styles.lbDivider}>
+                                <Text style={styles.lbDividerText}>•••</Text>
+                            </View>
+                        )}
+                        {leaderboard.findIndex(u => u.id === userData?.id || u.id === userData?.pin) >= 5 && (
+                            <View style={[styles.lbItem, styles.lbItemMe]}>
+                                <View style={styles.rankBadge}>
+                                    <Text style={styles.rankText}>{leaderboard.findIndex(u => u.id === userData?.id || u.id === userData?.pin) + 1}</Text>
+                                </View>
+                                <Text style={[styles.lbName, styles.lbNameMe]}>{userData?.name}</Text>
+                                <Text style={styles.lbPoints}>{myPoints} pts</Text>
+                            </View>
+                        )}
+                    </View>
+                )}
+            </View>
+
             {/* Updates Section */}
-            <View style={styles.card}>
+            <View style={[styles.card, { marginTop: 28 }]}>
                 <View style={styles.cardHeader}>
                     <View style={styles.cardTitleBox}>
                         <Bell size={18} color="#1e293b" />
@@ -273,13 +395,13 @@ const styles = StyleSheet.create({
     dateRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 },
     dateText: { fontSize: 13, color: '#94a3b8', fontWeight: '500' },
 
+    alertRow: { flexDirection: 'row', gap: 12, marginBottom: 28 },
     alertBox: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
+        padding: 14,
         borderRadius: 20,
-        borderLeftWidth: 6,
-        marginBottom: 28,
+        borderLeftWidth: 5,
         backgroundColor: '#fff',
         elevation: 2,
         shadowColor: '#000',
@@ -288,7 +410,8 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         gap: 12
     },
-    alertText: { fontSize: 15, color: '#1e293b', fontWeight: '600', flex: 1 },
+    alertVal: { fontSize: 16, fontWeight: '800', color: '#1e293b' },
+    alertTyp: { fontSize: 10, fontWeight: '700', color: '#64748b', textTransform: 'uppercase' },
     sectionTitle: { fontSize: 18, fontWeight: '800', color: '#1e293b', marginBottom: 16, marginTop: 8 },
     quickActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginBottom: 28 },
     actionBtn: {
@@ -416,7 +539,35 @@ const styles = StyleSheet.create({
         elevation: 1,
     },
     viewBtnText: { fontSize: 12, color: '#475569', fontWeight: '800' },
-    emptyText: { textAlign: 'center', color: '#94a3b8', padding: 24, fontWeight: '500' }
+    emptyText: { textAlign: 'center', color: '#94a3b8', padding: 24, fontWeight: '500' },
+
+    // Achievements Styles
+    achievementsCard: { backgroundColor: '#fff', borderRadius: 28, padding: 20, borderWidth: 1, borderColor: '#f1f5f9', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16 },
+    achTabs: { flexDirection: 'row', backgroundColor: '#f8fafc', borderRadius: 16, padding: 6, marginBottom: 20 },
+    achTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, borderRadius: 12 },
+    activeAchTab: { backgroundColor: '#fff', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1 },
+    achTabText: { fontSize: 13, fontWeight: '700', color: '#94a3b8' },
+    activeAchTabText: { color: '#1e293b' },
+    emptyAch: { alignItems: 'center', padding: 30, gap: 12 },
+    emptyAchText: { fontSize: 14, color: '#cbd5e1', fontWeight: '600' },
+    badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    badgeItem: { width: '30%', alignItems: 'center', gap: 8 },
+    badgeIconSmall: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+    badgeNameSmall: { fontSize: 10, fontWeight: '700', color: '#64748b', textAlign: 'center' },
+    leaderboardView: { gap: 10 },
+    lbItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', padding: 12, borderRadius: 16, gap: 12 },
+    lbItemMe: { backgroundColor: '#f5f7ff', borderWidth: 1, borderColor: '#e0e7ff' },
+    rankBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center' },
+    rank1: { backgroundColor: '#fef3c7' },
+    rank2: { backgroundColor: '#f1f5f9' },
+    rank3: { backgroundColor: '#ffedd5' },
+    rankText: { fontSize: 13, fontWeight: '800', color: '#64748b' },
+    rankTextTop: { color: '#d97706' },
+    lbName: { flex: 1, fontSize: 14, fontWeight: '600', color: '#475569' },
+    lbNameMe: { color: '#6366f1', fontWeight: '800' },
+    lbPoints: { fontSize: 13, fontWeight: '800', color: '#10b981' },
+    lbDivider: { alignItems: 'center', marginVertical: 4 },
+    lbDividerText: { color: '#cbd5e1', letterSpacing: 2 }
 });
 
 export default StudentDashboard;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import MainLayout from './components/layouts/MainLayout';
 
@@ -19,13 +19,8 @@ import StudentManagement from './pages/admin/StudentManagement';
 import TimetableManagement from './pages/admin/TimetableManagement';
 import AttendanceOverview from './pages/admin/AttendanceOverview';
 import ConcernsManagement from './pages/admin/ConcernsManagement';
-import SubjectManagement from './pages/admin/SubjectManagement';
-<<<<<<< HEAD
 import AdminNotices from './pages/admin/AdminNotices';
-
-=======
 import TransportManagement from './pages/admin/TransportManagement';
->>>>>>> 7cf611b (Live Bus Tracking Working)
 
 // Super Admin pages
 import SuperAdminDashboard from './pages/super-admin/SuperAdminDashboard';
@@ -38,6 +33,7 @@ import TeacherMaterials from './pages/teacher/TeacherMaterials';
 import TeacherTimetable from './pages/teacher/TeacherTimetable';
 import StudentTracker from './pages/teacher/StudentTracker';
 import TeacherNotices from './pages/teacher/TeacherNotices';
+import MyTopics from './pages/teacher/MyTopics';
 
 
 // Driver pages
@@ -54,9 +50,27 @@ import StudentAttendance from './pages/student/StudentAttendance';
 import StudentBusTracking from './pages/student/StudentBusTracking';
 import AcademicCalendar from './pages/shared/AcademicCalendar';
 import NoticeBoard from './pages/student/NoticeBoard';
+import DailyReview from './pages/student/DailyReview';
 
 import './styles/styles.css';
 
+
+// Home redirector component
+const HomeRedirect = () => {
+  const { userData, loading } = useAuth();
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
+
+  if (!userData) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Custom logic: Redirect based on role
+  if (userData.role === 'super_admin') return <Navigate to="/super-admin" replace />;
+  return <Navigate to={`/${userData.role}`} replace />;
+};
 
 function App() {
   return (
@@ -116,6 +130,7 @@ function App() {
                     <Route path="tracker" element={<StudentTracker />} />
                     <Route path="calendar" element={<AcademicCalendar />} />
                     <Route path="notices" element={<TeacherNotices />} />
+                    <Route path="topics" element={<MyTopics />} />
                   </Routes>
                 </MainLayout>
               </ProtectedRoute>
@@ -139,6 +154,7 @@ function App() {
                     <Route path="bus-tracking" element={<StudentBusTracking />} />
                     <Route path="calendar" element={<AcademicCalendar />} />
                     <Route path="notices" element={<NoticeBoard />} />
+                    <Route path="daily-review" element={<DailyReview />} />
                   </Routes>
                 </MainLayout>
               </ProtectedRoute>
@@ -176,7 +192,7 @@ function App() {
           />
 
           {/* Redirects */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<HomeRedirect />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>

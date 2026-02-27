@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, SafeAreaView, Switch, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Switch, ScrollView, Platform, TextInput } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { db } from '../../api/firebase';
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -13,6 +14,7 @@ const BusSharing = ({ navigation }) => {
     const [loading, setLoading] = useState(false);
     const [location, setLocation] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
+    const [busId, setBusId] = useState(userData?.bus_id || '001');
     const locationSubscription = useRef(null);
 
     const startSharing = async () => {
@@ -76,7 +78,8 @@ const BusSharing = ({ navigation }) => {
 
             // Mark as inactive in Firebase
             if (userData?.college_id) {
-                const busDocRef = doc(db, 'bus_locations', userData.college_id);
+                const docId = userData.college_id + '_' + busId;
+                const busDocRef = doc(db, 'bus_locations', docId);
                 await updateDoc(busDocRef, {
                     status: 'inactive',
                     last_updated: serverTimestamp()
@@ -93,13 +96,15 @@ const BusSharing = ({ navigation }) => {
         if (!userData?.college_id) return;
 
         try {
-            const busDocRef = doc(db, 'bus_locations', userData.college_id);
+            const docId = userData.college_id + '_' + busId;
+            const busDocRef = doc(db, 'bus_locations', docId);
             await setDoc(busDocRef, {
                 latitude: coords.latitude,
                 longitude: coords.longitude,
                 status: 'active',
                 last_updated: serverTimestamp(),
                 college_id: userData.college_id,
+                bus_id: busId,
                 driver_id: userData.uid || userData.id,
                 driver_name: userData.name
             }, { merge: true });
@@ -147,6 +152,17 @@ const BusSharing = ({ navigation }) => {
                 )}
 
                 <View style={styles.controls}>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.controlLabel}>Bus Number / ID</Text>
+                        <TextInput
+                            style={styles.busInput}
+                            value={busId}
+                            onChangeText={setBusId}
+                            placeholder="e.g. 001"
+                            disabled={isSharing}
+                        />
+                    </View>
+
                     <View style={styles.controlRow}>
                         <View>
                             <Text style={styles.controlLabel}>Share Location</Text>
@@ -229,6 +245,18 @@ const styles = StyleSheet.create({
     controlRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     controlLabel: { fontSize: 16, fontWeight: 'bold', color: '#1e293b' },
     controlMeta: { fontSize: 12, color: '#64748b', marginTop: 2 },
+    inputGroup: { marginBottom: 20, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+    busInput: {
+        backgroundColor: '#f8fafc',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        height: 50,
+        marginTop: 10,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        fontSize: 16,
+        color: '#1e293b',
+    },
     locationInfo: {
         backgroundColor: '#f1f5f9',
         borderRadius: 20,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
@@ -31,7 +31,8 @@ const StudentAttendance = ({ navigation }) => {
     });
     const [animatedPercentage, setAnimatedPercentage] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [history, setHistory] = useState([]);
+    const [allRecords, setAllRecords] = useState([]);
+    const [viewingMonth, setViewingMonth] = useState(new Date(2026, 1, 1)); // Default to Feb 2026 for consistency with project timeline
 
     useEffect(() => {
         if (!userData?.college_id || !userData?.class_id) return;
@@ -62,8 +63,19 @@ const StudentAttendance = ({ navigation }) => {
                 absent: aCount,
                 percentage: perc
             }));
-            setHistory(records.slice(0, 10));
+            setAllRecords(records);
             setLoading(false);
+
+            // Calculate streak
+            let streak = 0;
+            const uniqueDates = [...new Set(records.map(r => r.date))].sort().reverse();
+            for (let d of uniqueDates) {
+                const dayRecords = records.filter(r => r.date === d);
+                const wasPresent = dayRecords.some(r => r.present?.includes(userData.pin));
+                if (wasPresent) streak++;
+                else break;
+            }
+            setStats(prev => ({ ...prev, streak }));
         });
 
         return () => unsubscribe();
@@ -95,10 +107,29 @@ const StudentAttendance = ({ navigation }) => {
 
     const [selectedDate, setSelectedDate] = useState(null);
 
-    const monthDays = Array.from({ length: 28 }, (_, i) => ({
-        day: i + 1,
-        status: Math.random() > 0.2 ? 'present' : 'absent'
-    }));
+    const monthDays = useMemo(() => {
+        const year = viewingMonth.getFullYear();
+        const month = viewingMonth.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        return Array.from({ length: daysInMonth }, (_, i) => {
+            const day = i + 1;
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayRecords = allRecords.filter(r => r.date === dateStr);
+
+            let status = 'none';
+            if (dayRecords.length > 0) {
+                const isPresent = dayRecords.some(r => r.present?.includes(userData.pin));
+                status = isPresent ? 'present' : 'absent';
+            }
+
+            return { day, date: dateStr, status, records: dayRecords };
+        });
+    }, [viewingMonth, allRecords, userData]);
+
+    const changeMonth = (offset) => {
+        setViewingMonth(new Date(viewingMonth.getFullYear(), viewingMonth.getMonth() + offset, 1));
+    };
 
     const strokeDasharray = 2 * Math.PI * 15;
     const strokeDashoffset = strokeDasharray - (strokeDasharray * animatedPercentage) / 100;
@@ -176,11 +207,17 @@ const StudentAttendance = ({ navigation }) => {
                 <View style={styles.cardHeader}>
                     <View style={styles.cardTitleBox}>
                         <CalendarIcon size={20} color="#6366f1" />
-                        <Text style={styles.cardTitle}>February 2026</Text>
+                        <Text style={styles.cardTitle}>
+                            {viewingMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                        </Text>
                     </View>
                     <View style={styles.navBtns}>
-                        <TouchableOpacity style={styles.navBtn}><ChevronLeft size={20} color="#64748b" /></TouchableOpacity>
-                        <TouchableOpacity style={styles.navBtn}><ChevronRight size={20} color="#64748b" /></TouchableOpacity>
+                        <TouchableOpacity style={styles.navBtn} onPress={() => changeMonth(-1)}>
+                            <ChevronLeft size={20} color="#64748b" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.navBtn} onPress={() => changeMonth(1)}>
+                            <ChevronRight size={20} color="#64748b" />
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -188,15 +225,25 @@ const StudentAttendance = ({ navigation }) => {
                     {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
                         <Text key={`${day}-${i}`} style={styles.calendarDayHeader}>{day}</Text>
                     ))}
-                    <View style={styles.calendarDayEmpty} />
-                    <View style={styles.calendarDayEmpty} />
+                    {Array.from({ length: (new Date(viewingMonth.getFullYear(), viewingMonth.getMonth(), 1).getDay() + 6) % 7 }).map((_, i) => (
+                        <View key={`empty-${i}`} style={styles.calendarDayEmpty} />
+                    ))}
                     {monthDays.map(item => (
                         <TouchableOpacity
                             key={item.day}
-                            style={[styles.calendarDay, item.status === 'present' ? styles.presentDay : styles.absentDay]}
+                            style={[
+                                styles.calendarDay,
+                                item.status === 'present' ? styles.presentDay :
+                                    item.status === 'absent' ? styles.absentDay : null,
+                                selectedDate?.date === item.date && styles.selectedDay
+                            ]}
                             onPress={() => setSelectedDate(item)}
                         >
-                            <Text style={[styles.dayText, item.status === 'present' ? styles.presentText : styles.absentText]}>{item.day}</Text>
+                            <Text style={[
+                                styles.dayText,
+                                item.status === 'present' ? styles.presentText :
+                                    item.status === 'absent' ? styles.absentText : { color: '#64748b' }
+                            ]}>{item.day}</Text>
                             {item.status === 'present' && <View style={styles.dot} />}
                         </TouchableOpacity>
                     ))}
@@ -204,12 +251,14 @@ const StudentAttendance = ({ navigation }) => {
             </View>
 
             {/* Detailed Report */}
-            <Text style={styles.sectionTitle}>Recent History</Text>
+            <Text style={styles.sectionTitle}>
+                {selectedDate ? `Records for ${new Date(selectedDate.date).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}` : 'Recent History'}
+            </Text>
             <View style={styles.reportCard}>
-                {history.length === 0 ? (
-                    <Text style={styles.emptyText}>No records found</Text>
+                {(selectedDate ? selectedDate.records : allRecords.slice(0, 10)).length === 0 ? (
+                    <Text style={styles.emptyText}>No records found for this period</Text>
                 ) : (
-                    history.map((record, i) => {
+                    (selectedDate ? selectedDate.records : allRecords.slice(0, 10)).map((record, i) => {
                         const isPresent = record.present?.includes(userData.pin);
                         const dateObj = new Date(record.date);
                         return (

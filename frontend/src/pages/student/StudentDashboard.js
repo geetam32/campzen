@@ -1,13 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../firebase';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import {
     Calendar, FileText, BookOpen, TrendingUp, TrendingDown,
     Activity, Clock, AlertTriangle, Download, ChevronRight, CheckCircle,
-    Flame, Star, Trophy, Bell, Zap, PlayCircle, Megaphone
+    Flame, Star, Trophy, Bell, Zap, PlayCircle, Megaphone, Bus, MapPin, Loader2, WifiOff
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+
+const GOOGLE_MAPS_API_KEY = "AIzaSyBXg6_zStGAkOUd5KQo6mbnfe0u6-_u30Q";
+
+const mapContainerStyle = {
+    width: '100%',
+    height: '250px',
+    borderRadius: '16px'
+};
+
+const mapOptions = {
+    disableDefaultUI: true,
+    zoomControl: false,
+    styles: [
+        { "elementType": "geometry", "stylers": [{ "color": "#f5f5f5" }] },
+        { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
+        { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#ffffff" }] },
+        { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#e9e9e9" }] }
+    ]
+};
 
 const StudentDashboard = () => {
     const { userData } = useAuth();
@@ -20,7 +40,13 @@ const StudentDashboard = () => {
         streak: 7
     });
     const [recentUpdates, setRecentUpdates] = useState([]);
+    const [liveBuses, setLiveBuses] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    const { isLoaded } = useJsApiLoader({
+        googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+        id: 'google-map-script'
+    });
 
     const getDayName = () => {
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -99,6 +125,44 @@ const StudentDashboard = () => {
         };
 
         fetchData();
+    }, [userData]);
+
+    useEffect(() => {
+        if (!userData?.college_id) return;
+
+        let locUnsub = null;
+
+        const startListening = async () => {
+            try {
+                const busQ = query(collection(db, 'buses'), where('college_id', '==', userData.college_id));
+                const busSnap = await getDocs(busQ);
+                const busData = busSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const busIds = busData.map(b => b.id);
+
+                if (busIds.length > 0) {
+                    locUnsub = onSnapshot(collection(db, 'bus_locations'), (snap) => {
+                        const live = snap.docs
+                            .filter(d => busIds.includes(d.id))
+                            .map(d => {
+                                const data = d.data();
+                                const busInfo = busData.find(b => b.id === d.id);
+                                return {
+                                    id: d.id,
+                                    ...data,
+                                    bus_number: busInfo?.bus_number || 'Unknown'
+                                };
+                            })
+                            .filter(l => l.is_tracking && l.latitude && l.longitude);
+                        setLiveBuses(live);
+                    });
+                }
+            } catch (err) {
+                console.error("Error setting up bus tracking listener:", err);
+            }
+        };
+
+        startListening();
+        return () => locUnsub && locUnsub();
     }, [userData]);
 
     const getUpdateIcon = (type) => {
@@ -319,6 +383,55 @@ const StudentDashboard = () => {
                         <button className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem' }}>View Analytics</button>
                     </div>
                 </div>
+
+                {/* Live Bus Tracking Card */}
+                <div className="card bus-tracking-card" style={{ gridColumn: 'span 2' }}>
+                    <div className="card-header">
+                        <h3 className="card-title">
+                            <Bus size={18} style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                            Live Bus Tracking
+                        </h3>
+                        {liveBuses.length > 0 && (
+                            <span className="live-indicator">
+                                <span className="status-dot pulse"></span> {liveBuses.length} Bus{liveBuses.length > 1 ? 'es' : ''} Live
+                            </span>
+                        )}
+                        <button className="btn btn-secondary btn-sm" onClick={() => navigate('/student/bus-tracking')}>Full Map</button>
+                    </div>
+                    <div className="map-wrapper" style={{ height: '250px', position: 'relative', background: 'var(--bg-tertiary)', borderRadius: '16px', overflow: 'hidden' }}>
+                        {!isLoaded ? (
+                            <div className="map-placeholder">
+                                <Loader2 size={32} className="spinner" />
+                                <p style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>Loading maps...</p>
+                            </div>
+                        ) : liveBuses.length === 0 ? (
+                            <div className="map-placeholder" style={{ opacity: 0.7 }}>
+                                <WifiOff size={32} style={{ marginBottom: '0.5rem' }} />
+                                <p style={{ fontWeight: 600 }}>No buses are live right now</p>
+                                <p style={{ fontSize: '0.75rem' }}>Buses will appear here when they start tracking.</p>
+                            </div>
+                        ) : (
+                            <GoogleMap
+                                mapContainerStyle={mapContainerStyle}
+                                center={{ lat: liveBuses[0].latitude, lng: liveBuses[0].longitude }}
+                                zoom={14}
+                                options={mapOptions}
+                            >
+                                {liveBuses.map(bus => (
+                                    <Marker
+                                        key={bus.id}
+                                        position={{ lat: bus.latitude, lng: bus.longitude }}
+                                        title={`Bus #${bus.bus_number}`}
+                                        icon={{
+                                            url: "https://maps.google.com/mapfiles/kml/shapes/bus.png",
+                                            scaledSize: new window.google.maps.Size(30, 30)
+                                        }}
+                                    />
+                                ))}
+                            </GoogleMap>
+                        )}
+                    </div>
+                </div>
             </div>
 
             <style>{`
@@ -438,6 +551,44 @@ const StudentDashboard = () => {
                 
                 .sp-percent {
                     color: var(--accent-primary);
+                }
+
+                .live-indicator {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    color: var(--accent-success);
+                    background: rgba(16, 185, 129, 0.1);
+                    padding: 4px 10px;
+                    border-radius: 99px;
+                }
+
+                .status-dot.pulse {
+                    width: 8px;
+                    height: 8px;
+                    background-color: var(--accent-success);
+                    border-radius: 50%;
+                    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+                    animation: pulse-green 2s infinite;
+                }
+
+                @keyframes pulse-green {
+                    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+                    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+                    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+                }
+
+                .map-placeholder {
+                    position: absolute;
+                    inset: 0;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    color: var(--text-muted);
+                    text-align: center;
                 }
 
                 @media (max-width: 768px) {

@@ -55,8 +55,11 @@ const TransportManagement = ({ navigation }) => {
 
     // New Bus Form
     const [newBus, setNewBus] = useState({ id: '', route: '', driver_id: '', status: 'inactive' });
+    const [editingBus, setEditingBus] = useState(null);
+
     // New Driver Form
-    const [newDriver, setNewDriver] = useState({ name: '', email: '', bus_id: '', status: 'active' });
+    const [newDriver, setNewDriver] = useState({ name: '', email: '', password: '', bus_id: '', status: 'active' });
+    const [editingDriver, setEditingDriver] = useState(null);
 
     useEffect(() => {
         if (!userData?.college_id) return;
@@ -106,14 +109,22 @@ const TransportManagement = ({ navigation }) => {
         }
         setLoading(true);
         try {
-            await setDoc(doc(db, 'colleges', userData.college_id, 'buses', newBus.id), {
-                ...newBus,
-                college_id: userData.college_id,
-                created_at: serverTimestamp()
-            });
+            if (editingBus) {
+                await updateDoc(doc(db, 'colleges', userData.college_id, 'buses', editingBus.id), {
+                    ...newBus,
+                    last_updated: serverTimestamp()
+                });
+            } else {
+                await setDoc(doc(db, 'colleges', userData.college_id, 'buses', newBus.id), {
+                    ...newBus,
+                    college_id: userData.college_id,
+                    created_at: serverTimestamp()
+                });
+            }
             setBusModalVisible(false);
+            setEditingBus(null);
             setNewBus({ id: '', route: '', driver_id: '', status: 'inactive' });
-            Alert.alert("Success", "Bus added successfully");
+            Alert.alert("Success", editingBus ? "Bus updated successfully" : "Bus added successfully");
         } catch (error) {
             console.error(error);
             Alert.alert("Error", "Failed to add bus");
@@ -129,19 +140,25 @@ const TransportManagement = ({ navigation }) => {
         }
         setLoading(true);
         try {
-            // In a real app, you'd handle auth account creation here
-            // For now, we'll just save the driver profile
-            const driverId = newDriver.email.replace(/@|\./g, '_');
-            await setDoc(doc(db, 'drivers', driverId), {
-                ...newDriver,
-                role: 'driver',
-                college_id: userData.college_id,
-                created_at: serverTimestamp(),
-                uid: driverId // For consistency with AuthContext
-            });
+            if (editingDriver) {
+                await updateDoc(doc(db, 'drivers', editingDriver.id), {
+                    ...newDriver,
+                    last_updated: serverTimestamp()
+                });
+            } else {
+                const driverId = newDriver.email.replace(/@|\./g, '_');
+                await setDoc(doc(db, 'drivers', driverId), {
+                    ...newDriver,
+                    role: 'driver',
+                    college_id: userData.college_id,
+                    created_at: serverTimestamp(),
+                    uid: driverId
+                });
+            }
 
-            // Update bus if assigned
+            // Update bus if assigned or changed
             if (newDriver.bus_id) {
+                const driverId = editingDriver ? editingDriver.id : newDriver.email.replace(/@|\./g, '_');
                 await updateDoc(doc(db, 'colleges', userData.college_id, 'buses', newDriver.bus_id), {
                     driver_id: driverId,
                     driver_name: newDriver.name
@@ -149,8 +166,9 @@ const TransportManagement = ({ navigation }) => {
             }
 
             setDriverModalVisible(false);
+            setEditingDriver(null);
             setNewDriver({ name: '', email: '', password: '', bus_id: '', status: 'active' });
-            Alert.alert("Success", "Driver added successfully");
+            Alert.alert("Success", editingDriver ? "Driver updated successfully" : "Driver added successfully");
         } catch (error) {
             console.error(error);
             Alert.alert("Error", "Failed to add driver");
@@ -164,10 +182,49 @@ const TransportManagement = ({ navigation }) => {
             { text: "Cancel" },
             {
                 text: "Delete", style: 'destructive', onPress: async () => {
-                    await deleteDoc(doc(db, 'colleges', userData.college_id, 'buses', id));
+                    try {
+                        await deleteDoc(doc(db, 'colleges', userData.college_id, 'buses', id));
+                        Alert.alert("Success", "Bus deleted");
+                    } catch (err) {
+                        Alert.alert("Error", "Failed to delete");
+                    }
                 }
             }
         ]);
+    };
+
+    const handleDeleteDriver = (id) => {
+        Alert.alert("Delete", "Are you sure you want to delete this driver?", [
+            { text: "Cancel" },
+            {
+                text: "Delete", style: 'destructive', onPress: async () => {
+                    try {
+                        await deleteDoc(doc(db, 'drivers', id));
+                        Alert.alert("Success", "Driver deleted");
+                    } catch (err) {
+                        Alert.alert("Error", "Failed to delete");
+                    }
+                }
+            }
+        ]);
+    };
+
+    const handleEditBus = (bus) => {
+        setEditingBus(bus);
+        setNewBus({ id: bus.id, route: bus.route, driver_id: bus.driver_id || '', status: bus.status || 'inactive' });
+        setBusModalVisible(true);
+    };
+
+    const handleEditDriver = (driver) => {
+        setEditingDriver(driver);
+        setNewDriver({
+            name: driver.name,
+            email: driver.email,
+            password: driver.password || '',
+            bus_id: driver.bus_id || '',
+            status: driver.status || 'active'
+        });
+        setDriverModalVisible(true);
     };
 
     const renderConfig = () => (
@@ -233,7 +290,7 @@ const TransportManagement = ({ navigation }) => {
                                 </View>
                             </View>
                             <View style={styles.itemActions}>
-                                <TouchableOpacity style={styles.actionIconButton}>
+                                <TouchableOpacity style={styles.actionIconButton} onPress={() => handleEditBus(bus)}>
                                     <Edit size={16} color="#64748b" />
                                     <Text style={styles.actionIconText}>Edit</Text>
                                 </TouchableOpacity>
@@ -288,11 +345,14 @@ const TransportManagement = ({ navigation }) => {
                                 </View>
                             </View>
                             <View style={styles.itemActions}>
-                                <TouchableOpacity style={styles.actionIconButton}>
+                                <TouchableOpacity style={styles.actionIconButton} onPress={() => handleEditDriver(driver)}>
                                     <Edit size={16} color="#64748b" />
                                     <Text style={styles.actionIconText}>Edit</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={[styles.actionIconButton, { borderLeftWidth: 1, borderLeftColor: '#f1f5f9' }]}>
+                                <TouchableOpacity
+                                    style={[styles.actionIconButton, { borderLeftWidth: 1, borderLeftColor: '#f1f5f9' }]}
+                                    onPress={() => handleDeleteDriver(driver.id)}
+                                >
                                     <Trash2 size={16} color="#f43f5e" />
                                     <Text style={[styles.actionIconText, { color: '#f43f5e' }]}>Delete</Text>
                                 </TouchableOpacity>
@@ -357,22 +417,26 @@ const TransportManagement = ({ navigation }) => {
                 animationType="fade"
                 transparent={true}
                 visible={busModalVisible}
-                onRequestClose={() => setBusModalVisible(false)}
+                onRequestClose={() => {
+                    setBusModalVisible(false);
+                    setEditingBus(null);
+                }}
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
                             <Bus size={20} color="#6366f1" />
-                            <Text style={styles.modalTitle}>Add New Bus</Text>
+                            <Text style={styles.modalTitle}>{editingBus ? 'Edit Bus' : 'Add New Bus'}</Text>
                         </View>
 
                         <View style={styles.formGroup}>
                             <Text style={styles.inputLabel}>Bus Number</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, editingBus && { opacity: 0.6 }]}
                                 placeholder="e.g. BUS-01"
                                 value={newBus.id}
                                 onChangeText={(val) => setNewBus({ ...newBus, id: val })}
+                                editable={!editingBus}
                             />
                         </View>
 
@@ -389,7 +453,11 @@ const TransportManagement = ({ navigation }) => {
                         <View style={styles.modalActions}>
                             <TouchableOpacity
                                 style={styles.cancelBtn}
-                                onPress={() => setBusModalVisible(false)}
+                                onPress={() => {
+                                    setBusModalVisible(false);
+                                    setEditingBus(null);
+                                    setNewBus({ id: '', route: '', driver_id: '', status: 'inactive' });
+                                }}
                             >
                                 <Text style={styles.cancelBtnText}>✕ Cancel</Text>
                             </TouchableOpacity>
@@ -401,8 +469,8 @@ const TransportManagement = ({ navigation }) => {
                                 <LinearGradient colors={['#7C3AED', '#6366f1']} style={styles.submitGradient}>
                                     {loading ? <ActivityIndicator color="#fff" size="small" /> : (
                                         <>
-                                            <Edit size={16} color="#fff" />
-                                            <Text style={styles.submitBtnText}>Create</Text>
+                                            <Shield size={16} color="#fff" />
+                                            <Text style={styles.submitBtnText}>{editingBus ? 'Update' : 'Create'}</Text>
                                         </>
                                     )}
                                 </LinearGradient>
@@ -417,13 +485,16 @@ const TransportManagement = ({ navigation }) => {
                 animationType="fade"
                 transparent={true}
                 visible={driverModalVisible}
-                onRequestClose={() => setDriverModalVisible(false)}
+                onRequestClose={() => {
+                    setDriverModalVisible(false);
+                    setEditingDriver(null);
+                }}
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
                             <Users size={20} color="#6366f1" />
-                            <Text style={styles.modalTitle}>Add New Driver</Text>
+                            <Text style={styles.modalTitle}>{editingDriver ? 'Edit Driver' : 'Add New Driver'}</Text>
                         </View>
 
                         <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={false}>
@@ -440,12 +511,13 @@ const TransportManagement = ({ navigation }) => {
                             <View style={styles.formGroup}>
                                 <Text style={styles.inputLabel}>Username (Login ID)</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, editingDriver && { opacity: 0.6 }]}
                                     placeholder="admin@cme001.com"
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                     value={newDriver.email}
                                     onChangeText={(val) => setNewDriver({ ...newDriver, email: val })}
+                                    editable={!editingDriver}
                                 />
                             </View>
 
@@ -493,7 +565,11 @@ const TransportManagement = ({ navigation }) => {
                         <View style={styles.modalActions}>
                             <TouchableOpacity
                                 style={styles.cancelBtn}
-                                onPress={() => setDriverModalVisible(false)}
+                                onPress={() => {
+                                    setDriverModalVisible(false);
+                                    setEditingDriver(null);
+                                    setNewDriver({ name: '', email: '', password: '', bus_id: '', status: 'active' });
+                                }}
                             >
                                 <Text style={styles.cancelBtnText}>✕ Cancel</Text>
                             </TouchableOpacity>
@@ -505,8 +581,8 @@ const TransportManagement = ({ navigation }) => {
                                 <LinearGradient colors={['#7C3AED', '#6366f1']} style={styles.submitGradient}>
                                     {loading ? <ActivityIndicator color="#fff" size="small" /> : (
                                         <>
-                                            <Edit size={16} color="#fff" />
-                                            <Text style={styles.submitBtnText}>Create</Text>
+                                            <Shield size={16} color="#fff" />
+                                            <Text style={styles.submitBtnText}>{editingDriver ? 'Update' : 'Create'}</Text>
                                         </>
                                     )}
                                 </LinearGradient>

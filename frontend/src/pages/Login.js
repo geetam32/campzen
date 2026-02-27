@@ -83,7 +83,12 @@ const Login = () => {
             if (result.mustChangePassword) {
                 navigate('/change-password');
             } else {
-                navigate(`/${result.role}`);
+                // Redirect teachers to home (/) as requested
+                if (result.role === 'teacher') {
+                    navigate('/');
+                } else {
+                    navigate(`/${result.role}`);
+                }
             }
         } catch (err) {
             setError(err.message || 'Login failed. Please check your credentials.');

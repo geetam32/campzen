@@ -15,11 +15,9 @@ import {
     UserCheck,
     User,
     MessageSquare,
-<<<<<<< HEAD
-    Megaphone
-=======
-    Bus
->>>>>>> 7cf611b (Live Bus Tracking Working)
+    Megaphone,
+    Bus,
+    Layers
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -37,11 +35,8 @@ const Sidebar = () => {
         { to: '/admin/attendance', icon: ClipboardList, label: 'Attendance Overview' },
         { to: '/admin/calendar', icon: Calendar, label: 'Academic Calendar' },
         { to: '/admin/concerns', icon: AlertCircle, label: 'Concerns' },
-<<<<<<< HEAD
         { to: '/admin/notices', icon: Megaphone, label: 'Notice Board' },
-=======
         { to: '/admin/transport', icon: Bus, label: 'Transport' },
->>>>>>> 7cf611b (Live Bus Tracking Working)
     ];
 
     const superAdminLinks = [
@@ -58,6 +53,7 @@ const Sidebar = () => {
         { to: '/teacher/timetable', icon: Clock, label: 'My Timetable' },
         { to: '/teacher/notices', icon: Megaphone, label: 'Notices' },
         { to: '/teacher/calendar', icon: Calendar, label: 'Academic Calendar' },
+        { to: '/teacher/topics', icon: Layers, label: 'My Lessons' },
     ];
 
     // Add Student Tracker for class teachers
@@ -72,12 +68,10 @@ const Sidebar = () => {
         { to: '/student/materials', icon: BookOpen, label: 'Materials' },
         { to: '/student/calendar', icon: Calendar, label: 'Academic Calendar' },
         { to: '/student/concerns', icon: MessageSquare, label: 'Raise a Concern' },
-<<<<<<< HEAD
         { to: '/student/notices', icon: Megaphone, label: 'Notice Board' },
-=======
         { to: '/student/bus-tracking', icon: Bus, label: 'Bus Tracking' },
->>>>>>> 7cf611b (Live Bus Tracking Working)
         { to: '/student/profile', icon: User, label: 'Profile' },
+        { to: '/student/daily-review', icon: BookOpen, label: 'Daily Review' },
     ];
 
     let links = [];

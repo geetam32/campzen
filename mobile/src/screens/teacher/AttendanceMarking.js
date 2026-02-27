@@ -25,6 +25,9 @@ const AttendanceMarking = ({ navigation }) => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedPeriod, setSelectedPeriod] = useState('1');
     const [attendance, setAttendance] = useState({});
+    const [topic, setTopic] = useState('');
+    const [subjects, setSubjects] = useState([]);
+    const [selectedSubject, setSelectedSubject] = useState('');
     const [existingRecord, setExistingRecord] = useState(null);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -33,7 +36,7 @@ const AttendanceMarking = ({ navigation }) => {
     const periods = [1, 2, 3, 4, 5, 6, 7, 8];
 
     useEffect(() => {
-        const fetchClasses = async () => {
+        const fetchClassesAndSubjects = async () => {
             if (!userData?.college_id) return;
             try {
                 const q1 = query(collection(db, 'teaching_assignments'), where('college_id', '==', userData.college_id), where('teacher_id', '==', userData.uid));
@@ -44,9 +47,13 @@ const AttendanceMarking = ({ navigation }) => {
                 const q2 = query(collection(db, 'classes'), where('college_id', '==', userData.college_id));
                 const snap2 = await getDocs(q2);
                 setClasses(snap2.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => assignedIds.includes(c.id)));
+
+                const q3 = query(collection(db, 'subjects'), where('college_id', '==', userData.college_id));
+                const snap3 = await getDocs(q3);
+                setSubjects(snap3.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             } catch (error) { console.error(error); }
         };
-        fetchClasses();
+        fetchClassesAndSubjects();
     }, [userData]);
 
     useEffect(() => {
@@ -69,6 +76,8 @@ const AttendanceMarking = ({ navigation }) => {
                 if (!snapA.empty) {
                     const rec = { id: snapA.docs[0].id, ...snapA.docs[0].data() };
                     setExistingRecord(rec);
+                    setTopic(rec.topic || '');
+                    setSelectedSubject(rec.subject_id || '');
                     const map = {};
                     list.forEach(s => {
                         if (rec.present?.includes(s.pin)) map[s.pin] = 'present';
@@ -77,6 +86,8 @@ const AttendanceMarking = ({ navigation }) => {
                     setAttendance(map);
                 } else {
                     setExistingRecord(null);
+                    setTopic('');
+                    setSelectedSubject('');
                     const map = {};
                     list.forEach(s => map[s.pin] = 'present');
                     setAttendance(map);
@@ -85,31 +96,43 @@ const AttendanceMarking = ({ navigation }) => {
             finally { setLoading(false); }
         };
         fetchData();
-    }, [selectedClass, selectedDate, selectedPeriod]);
+    }, [selectedClass, selectedDate, selectedPeriod, userData]);
 
     const toggleStatus = (pin) => {
-        if (existingRecord && !userData.is_class_teacher && userData.role !== 'admin') return;
+        if (existingRecord && !userData.is_class_teacher && userData.role !== 'admin' && existingRecord.marked_by !== userData.uid) return;
         setAttendance(prev => ({ ...prev, [pin]: prev[pin] === 'present' ? 'absent' : 'present' }));
     };
 
     const handleSubmit = async () => {
+        if (!selectedClass) return setMessage({ type: 'error', text: 'Select Class!' });
         setSaving(true);
         try {
             const present = Object.entries(attendance).filter(([_, s]) => s === 'present').map(([p]) => p);
             const absent = Object.entries(attendance).filter(([_, s]) => s === 'absent').map(([p]) => p);
+
+            const sub = subjects.find(s => s.id === selectedSubject);
+
             const data = {
                 college_id: userData.college_id,
                 class_id: selectedClass,
                 date: selectedDate,
                 period: parseInt(selectedPeriod),
-                present, absent,
+                present,
+                absent,
+                topic,
+                subject_id: selectedSubject,
+                subject_name: sub ? sub.name : 'General Class',
                 marked_by: userData.uid,
                 marked_by_name: userData.name,
-                marked_at: new Date()
+                updated_at: new Date()
             };
-            if (existingRecord) await updateDoc(doc(db, 'attendance_records', existingRecord.id), data);
-            else await addDoc(collection(db, 'attendance_records'), data);
-            setMessage({ type: 'success', text: 'Saved!' });
+            if (existingRecord) {
+                await updateDoc(doc(db, 'attendance_records', existingRecord.id), data);
+            } else {
+                data.marked_at = new Date();
+                await addDoc(collection(db, 'attendance_records'), data);
+            }
+            setMessage({ type: 'success', text: 'Saved Topic & Attendance!' });
         } catch (error) { setMessage({ type: 'error', text: 'Error!' }); }
         finally { setSaving(false); }
     };
@@ -163,6 +186,25 @@ const AttendanceMarking = ({ navigation }) => {
                     ))}
                 </ScrollView>
 
+                <Text style={styles.label}>Select Subject</Text>
+                <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.classPicker}>
+                    <TouchableOpacity
+                        style={[styles.classItem, !selectedSubject && styles.activeClass]}
+                        onPress={() => setSelectedSubject('')}
+                    >
+                        <Text style={[styles.classText, !selectedSubject && styles.activeClassText]}>General Class</Text>
+                    </TouchableOpacity>
+                    {subjects.map(sub => (
+                        <TouchableOpacity
+                            key={sub.id}
+                            style={[styles.classItem, selectedSubject === sub.id && styles.activeClass]}
+                            onPress={() => setSelectedSubject(sub.id)}
+                        >
+                            <Text style={[styles.classText, selectedSubject === sub.id && styles.activeClassText]}>{sub.name}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
                 <View style={styles.row}>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.label}>Date</Text>
@@ -184,6 +226,19 @@ const AttendanceMarking = ({ navigation }) => {
                             </ScrollView>
                         </View>
                     </View>
+                </View>
+
+                <View style={{ marginTop: 16 }}>
+                    <Text style={styles.label}>Topic Covered</Text>
+                    <TextInput
+                        style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                        value={topic}
+                        onChangeText={setTopic}
+                        placeholder="What did you teach today?"
+                        multiline={true}
+                        numberOfLines={3}
+                        editable={!existingRecord || userData.is_class_teacher || userData.uid === existingRecord.marked_by}
+                    />
                 </View>
             </View>
 

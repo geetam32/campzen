@@ -46,9 +46,28 @@ const AdminDashboard = ({ navigation }) => {
             return;
         }
 
-        setLoading(true);
         const collegeId = userData.college_id;
         const today = new Date().toISOString().split('T')[0];
+
+        // Track initialization of each listener
+        let initialized = {
+            t: false,
+            staff: false,
+            s: false,
+            c: false,
+            a: false
+        };
+
+        const checkLoading = () => {
+            if (Object.values(initialized).every(v => v === true)) {
+                setLoading(false);
+            }
+        };
+
+        // Safety timeout - don't keep user waiting more than 3 seconds even if some listeners are slow
+        const safetyTimer = setTimeout(() => {
+            setLoading(false);
+        }, 3000);
 
         // Faculty Listeners
         const tQ = query(collection(db, 'teachers'), where('college_id', '==', collegeId));
@@ -59,33 +78,59 @@ const AdminDashboard = ({ navigation }) => {
 
         const unsubT = onSnapshot(tQ, (snap) => {
             setStats(prev => ({ ...prev, teachers: snap.size }));
-            setLoading(false);
+            initialized.t = true;
+            checkLoading();
+        }, (err) => {
+            console.error("AdminDashboard Teacher Error:", err);
+            initialized.t = true;
+            checkLoading();
         });
 
         const unsubStaff = onSnapshot(staffQ, (snap) => {
             setStats(prev => ({ ...prev, staff: snap.size }));
+            initialized.staff = true;
+            checkLoading();
+        }, (err) => {
+            initialized.staff = true;
+            checkLoading();
         });
 
         const unsubS = onSnapshot(sQ, (snap) => {
             setStats(prev => ({ ...prev, students: snap.size }));
+            initialized.s = true;
+            checkLoading();
+        }, (err) => {
+            initialized.s = true;
+            checkLoading();
         });
 
         const unsubC = onSnapshot(cQ, (snap) => {
             setStats(prev => ({ ...prev, classes: snap.size }));
+            initialized.c = true;
+            checkLoading();
+        }, (err) => {
+            initialized.c = true;
+            checkLoading();
         });
 
         const unsubA = onSnapshot(aQ, (snap) => {
             setStats(prev => ({ ...prev, attendanceToday: snap.size }));
+            initialized.a = true;
+            checkLoading();
+        }, (err) => {
+            initialized.a = true;
+            checkLoading();
         });
 
         return () => {
+            clearTimeout(safetyTimer);
             unsubT();
             unsubStaff();
             unsubS();
             unsubC();
             unsubA();
         };
-    }, [userData]);
+    }, [userData?.college_id]);
 
     const QuickAction = ({ title, icon: Icon, color, onPress }) => (
         <TouchableOpacity style={styles.actionBtn} onPress={onPress}>
