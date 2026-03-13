@@ -23,7 +23,8 @@ import {
     Bell,
     CircleDashed,
     Bus,
-    Star
+    Star,
+    Settings as SettingsIcon
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -152,6 +153,9 @@ const AdminDashboard = ({ navigation }) => {
                         <Text style={styles.adminName}>{userData?.name || 'College Admin'}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <TouchableOpacity style={styles.notifyBtn} onPress={() => navigation.navigate('AdminSettings')}>
+                            <SettingsIcon size={20} color="#fff" />
+                        </TouchableOpacity>
                         <TouchableOpacity style={[styles.notifyBtn, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]} onPress={() => logout()}>
                             <LogOut size={20} color="#fff" />
                         </TouchableOpacity>

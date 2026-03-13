@@ -16,8 +16,12 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
-import { collection, query, where, getDocs, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { collection, query, where, getDocs, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, orderBy, limit, startAt, endAt, getDoc } from 'firebase/firestore';
 import {
     ArrowLeft,
     Calendar,
@@ -35,7 +39,8 @@ import {
     Trash2,
     Image as ImageIcon,
     X,
-    Layers
+    Layers,
+    Download
 } from 'lucide-react-native';
 
 const MyTopics = ({ navigation }) => {
@@ -51,7 +56,9 @@ const MyTopics = ({ navigation }) => {
     const [noteText, setNoteText] = useState('');
     const [assignmentText, setAssignmentText] = useState('');
     const [selectedImage, setSelectedImage] = useState(null);
+    const [selectedPDF, setSelectedPDF] = useState(null); // { uri, name, base64 }
     const [submitting, setSubmitting] = useState(false);
+    const [generatingReport, setGeneratingReport] = useState(false);
 
     const fetchData = async () => {
         if (!userData?.college_id || !userData?.uid) return;
@@ -151,6 +158,52 @@ const MyTopics = ({ navigation }) => {
         }
     };
 
+    const pickPDF = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: 'application/pdf',
+                copyToCacheDirectory: true
+            });
+
+            if (!result.canceled) {
+                const asset = result.assets[0];
+                
+                // Firestore limit is 1MB total, so 750KB for PDF is safe
+                if (asset.size && asset.size > 750000) {
+                    Alert.alert("File too large", "Please select a PDF under 750KB.");
+                    return;
+                }
+
+                const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+                    encoding: FileSystem.EncodingType.Base64
+                });
+
+                setSelectedPDF({
+                    uri: asset.uri,
+                    name: asset.name,
+                    base64: `data:application/pdf;base64,${base64}`
+                });
+            }
+        } catch (error) {
+            console.error("PDF Picker Error:", error);
+            Alert.alert("Error", "Failed to select PDF.");
+        }
+    };
+
+    const handleViewPDF = async (mat) => {
+        if (!mat.pdf_url) return;
+        try {
+            const tempFile = `${FileSystem.cacheDirectory}${mat.pdf_name || 'document.pdf'}`;
+            await FileSystem.writeAsStringAsync(tempFile, mat.pdf_url.split(',')[1], {
+                encoding: FileSystem.EncodingType.Base64
+            });
+            await Sharing.shareAsync(tempFile);
+        } catch (error) {
+            console.error("Error opening PDF:", error);
+            Alert.alert("Error", "Could not open PDF.");
+        }
+    };
+
     const handleAddMaterial = async (record) => {
         const text = activeTab === 'note' ? noteText : assignmentText;
         if (!text.trim() && !selectedImage) return;
@@ -164,6 +217,8 @@ const MyTopics = ({ navigation }) => {
                 type: activeTab,
                 text: text.trim(),
                 image_url: selectedImage,
+                pdf_url: selectedPDF?.base64 || null,
+                pdf_name: selectedPDF?.name || null,
                 created_by: userData.uid,
                 created_by_name: userData.name,
                 date: record.date,
@@ -175,11 +230,120 @@ const MyTopics = ({ navigation }) => {
             if (activeTab === 'note') setNoteText('');
             else setAssignmentText('');
             setSelectedImage(null);
+            setSelectedPDF(null);
         } catch (error) {
             console.error("Error adding material:", error);
             Alert.alert("Error", "Failed to save material.");
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const generateMonthlyReport = async () => {
+        if (!userData?.college_id || !userData?.uid) return;
+
+        setGeneratingReport(true);
+        try {
+            const currentYear = new Date(date).getFullYear();
+            const currentMonth = new Date(date).getMonth();
+            const monthName = new Date(date).toLocaleString('default', { month: 'long' });
+            
+            // 1. Calculate boundaries for the selected month
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+            
+            const startDate = firstDay.toISOString().split('T')[0];
+            const endDate = lastDay.toISOString().split('T')[0];
+
+            // 2. Fetch monthly records
+            const q = query(
+                collection(db, 'attendance_records'),
+                where('college_id', '==', userData.college_id),
+                where('marked_by', '==', userData.uid),
+                where('date', '>=', startDate),
+                where('date', '<=', endDate)
+            );
+
+            const snapshot = await getDocs(q);
+            if (snapshot.empty) {
+                Alert.alert("No Data", `No topics found for ${monthName} ${currentYear}.`);
+                return;
+            }
+
+            const monthlyRecords = snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .sort((a, b) => {
+                    if (a.date !== b.date) return a.date.localeCompare(b.date);
+                    return (a.period || 0) - (b.period || 0);
+                });
+
+            // 3. Build HTML
+            const htmlContent = `
+                <html>
+                    <head>
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+                        <style>
+                            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
+                            .header { margin-bottom: 30px; border-bottom: 2px solid #7c3aed; padding-bottom: 20px; }
+                            .title { color: #7c3aed; font-size: 24pt; margin: 0; font-weight: bold; }
+                            .meta-container { display: flex; justify-content: space-between; margin-top: 15px; flex-wrap: wrap; }
+                            .meta-item { color: #64748b; font-size: 11pt; margin-bottom: 5px; min-width: 200px; }
+                            .meta-label { font-weight: bold; color: #475569; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 25px; table-layout: fixed; }
+                            th { background-color: #f8fafc; text-align: left; padding: 12px; font-size: 10pt; color: #64748b; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; letter-spacing: 0.05em; }
+                            td { padding: 12px; font-size: 10pt; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; word-wrap: break-word; }
+                            .date-col { width: 20%; font-weight: bold; color: #7c3aed; }
+                            .period-col { width: 15%; }
+                            .subject-col { width: 25%; font-weight: 500; }
+                            .topic-col { width: 40%; }
+                            .footer { margin-top: 50px; font-size: 9pt; color: #94a3b8; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1 class="title">Monthly Topics Report</h1>
+                            <div class="meta-container">
+                                <div class="meta-item"><span class="meta-label">Teacher:</span> ${userData.name}</div>
+                                <div class="meta-item"><span class="meta-label">Month:</span> ${monthName} ${currentYear}</div>
+                                <div class="meta-item"><span class="meta-label">Generated:</span> ${new Date().toLocaleDateString()}</div>
+                            </div>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 20%">Date</th>
+                                    <th style="width: 15%">Period</th>
+                                    <th style="width: 25%">Subject</th>
+                                    <th style="width: 40%">Topic</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${monthlyRecords.map(rec => `
+                                    <tr>
+                                        <td class="date-col">${rec.date}</td>
+                                        <td class="period-col">Period ${rec.period}</td>
+                                        <td class="subject-col">${rec.subject_name || '-'}</td>
+                                        <td class="topic-col">${rec.topic || 'No topic recorded.'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        <div class="footer">
+                            <p>This is an automated report generated by the CampZen Education Platform.</p>
+                        </div>
+                    </body>
+                </html>
+            `;
+
+            // 4. Generate and Share
+            const { uri } = await Print.printToFileAsync({ html: htmlContent });
+            await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+
+        } catch (error) {
+            console.error("PDF generation failed:", error);
+            Alert.alert("Error", "Failed to generate report PDF. " + error.message);
+        } finally {
+            setGeneratingReport(false);
         }
     };
 
@@ -232,10 +396,24 @@ const MyTopics = ({ navigation }) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <ArrowLeft size={24} color="#1e293b" />
                 </TouchableOpacity>
-                <View>
+                <View style={{ flex: 1 }}>
                     <Text style={styles.title}>My Topics</Text>
                     <Text style={styles.subtitle}>Delivered Lesson Logs</Text>
                 </View>
+                <TouchableOpacity 
+                    style={[styles.downloadBtn, generatingReport && styles.disabledBtn]} 
+                    onPress={generateMonthlyReport}
+                    disabled={generatingReport}
+                >
+                    {generatingReport ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                        <>
+                            <Download size={18} color="#fff" />
+                            <Text style={styles.downloadBtnText}>Report</Text>
+                        </>
+                    )}
+                </TouchableOpacity>
             </View>
 
             {/* Date Selector */}
@@ -353,16 +531,32 @@ const MyTopics = ({ navigation }) => {
                                                     </View>
                                                 )}
 
+                                                {selectedPDF && (
+                                                    <View style={styles.pdfPreview}>
+                                                        <FileText size={20} color="#ef4444" />
+                                                        <Text style={styles.pdfName} numberOfLines={1}>{selectedPDF.name}</Text>
+                                                        <TouchableOpacity onPress={() => setSelectedPDF(null)}>
+                                                            <X size={16} color="#94a3b8" />
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                )}
+
                                                 <View style={styles.formActions}>
-                                                    <TouchableOpacity style={styles.addImageBtn} onPress={pickImage}>
-                                                        <ImageIcon size={18} color="#10b981" />
-                                                        <Text style={styles.addImageText}>Add Image</Text>
-                                                    </TouchableOpacity>
+                                                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                                                        <TouchableOpacity style={styles.addImageBtn} onPress={pickImage}>
+                                                            <ImageIcon size={18} color="#10b981" />
+                                                            <Text style={styles.addImageText}>Image</Text>
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity style={[styles.addImageBtn, { backgroundColor: '#fef2f2' }]} onPress={pickPDF}>
+                                                            <FileText size={18} color="#ef4444" />
+                                                            <Text style={[styles.addImageText, { color: '#ef4444' }]}>PDF</Text>
+                                                        </TouchableOpacity>
+                                                    </View>
 
                                                     <TouchableOpacity
-                                                        style={[styles.postBtn, (submitting || (!noteText.trim() && !assignmentText.trim() && !selectedImage)) && styles.disabledBtn]}
+                                                        style={[styles.postBtn, (submitting || (!noteText.trim() && !assignmentText.trim() && !selectedImage && !selectedPDF)) && styles.disabledBtn]}
                                                         onPress={() => handleAddMaterial(record)}
-                                                        disabled={submitting || (!noteText.trim() && !assignmentText.trim() && !selectedImage)}
+                                                        disabled={submitting || (!noteText.trim() && !assignmentText.trim() && !selectedImage && !selectedPDF)}
                                                     >
                                                         {submitting ? (
                                                             <ActivityIndicator size="small" color="#fff" />
@@ -387,6 +581,16 @@ const MyTopics = ({ navigation }) => {
                                                         </View>
                                                         {mat.image_url && (
                                                             <Image source={{ uri: mat.image_url }} style={styles.matImage} resizeMode="contain" />
+                                                        )}
+                                                        {mat.pdf_url && (
+                                                            <TouchableOpacity
+                                                                style={styles.pdfItem}
+                                                                onPress={() => handleViewPDF(mat)}
+                                                            >
+                                                                <FileText size={20} color="#ef4444" />
+                                                                <Text style={styles.pdfItemText} numberOfLines={1}>{mat.pdf_name || 'View PDF'}</Text>
+                                                                <Download size={16} color="#6366f1" />
+                                                            </TouchableOpacity>
                                                         )}
                                                     </View>
                                                 ))}
@@ -451,6 +655,21 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#94a3b8',
         fontWeight: '500',
+    },
+    downloadBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#7c3aed',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 12,
+        elevation: 2,
+    },
+    downloadBtnText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '800',
     },
     dateSelector: {
         flexDirection: 'row',
@@ -717,6 +936,40 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '700',
         color: '#10b981',
+    },
+    pdfPreview: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fef2f2',
+        padding: 10,
+        borderRadius: 12,
+        marginTop: 15,
+        gap: 10,
+        borderWidth: 1,
+        borderColor: '#fee2e2',
+    },
+    pdfName: {
+        flex: 1,
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#b91c1c',
+    },
+    pdfItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f8fafc',
+        padding: 12,
+        borderRadius: 12,
+        marginTop: 10,
+        gap: 10,
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
+    },
+    pdfItemText: {
+        flex: 1,
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#334155',
     },
     postBtn: {
         flexDirection: 'row',

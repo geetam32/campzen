@@ -21,7 +21,28 @@ const AdminSettings = ({ navigation }) => {
         working_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
         periods_per_day: 8,
         lunch_after_period: 4,
-        study_hour_period: 8
+        study_hour_period: 8,
+        module_visibility: {
+            staff: {
+                attendance: true,
+                my_topics: true,
+                learning: true,
+                schedule: true,
+                concerns: true,
+                notices: true,
+                student_tracker: true
+            },
+            student: {
+                attendance: true,
+                daily_review: true,
+                learning: true,
+                schedule: true,
+                concerns: true,
+                notices: true,
+                feedback: true,
+                profile: true
+            }
+        }
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -47,6 +68,19 @@ const AdminSettings = ({ navigation }) => {
             ? settings.working_days.filter(d => d !== day)
             : [...settings.working_days, day];
         setSettings({ ...settings, working_days: days });
+    };
+
+    const handleModuleToggle = (role, module) => {
+        setSettings({
+            ...settings,
+            module_visibility: {
+                ...settings.module_visibility,
+                [role]: {
+                    ...settings.module_visibility[role],
+                    [module]: !settings.module_visibility?.[role]?.[module]
+                }
+            }
+        });
     };
 
     const handleSave = async () => {
@@ -123,6 +157,38 @@ const AdminSettings = ({ navigation }) => {
                 </View>
             </View>
 
+            <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                    <Settings size={18} color="#6366f1" />
+                    <Text style={styles.sectionTitle}>Module Visibility</Text>
+                </View>
+
+                <Text style={styles.roleHeader}>Staff / Teacher Modules</Text>
+                <View style={styles.moduleGrid}>
+                    <ModuleToggle label="Attendance" value={settings.module_visibility?.staff?.attendance} onToggle={() => handleModuleToggle('staff', 'attendance')} />
+                    <ModuleToggle label="My Topics" value={settings.module_visibility?.staff?.my_topics} onToggle={() => handleModuleToggle('staff', 'my_topics')} />
+                    <ModuleToggle label="Learning" value={settings.module_visibility?.staff?.learning} onToggle={() => handleModuleToggle('staff', 'learning')} />
+                    <ModuleToggle label="Schedule" value={settings.module_visibility?.staff?.schedule} onToggle={() => handleModuleToggle('staff', 'schedule')} />
+                    <ModuleToggle label="Concerns" value={settings.module_visibility?.staff?.concerns} onToggle={() => handleModuleToggle('staff', 'concerns')} />
+                    <ModuleToggle label="Notices" value={settings.module_visibility?.staff?.notices} onToggle={() => handleModuleToggle('staff', 'notices')} />
+                    <ModuleToggle label="Student Tracker" value={settings.module_visibility?.staff?.student_tracker} onToggle={() => handleModuleToggle('staff', 'student_tracker')} />
+                </View>
+
+                <View style={[styles.divider, { marginVertical: 15 }]} />
+
+                <Text style={styles.roleHeader}>Student Modules</Text>
+                <View style={styles.moduleGrid}>
+                    <ModuleToggle label="Attendance" value={settings.module_visibility?.student?.attendance} onToggle={() => handleModuleToggle('student', 'attendance')} />
+                    <ModuleToggle label="Daily Review" value={settings.module_visibility?.student?.daily_review} onToggle={() => handleModuleToggle('student', 'daily_review')} />
+                    <ModuleToggle label="Learning" value={settings.module_visibility?.student?.learning} onToggle={() => handleModuleToggle('student', 'learning')} />
+                    <ModuleToggle label="Schedule" value={settings.module_visibility?.student?.schedule} onToggle={() => handleModuleToggle('student', 'schedule')} />
+                    <ModuleToggle label="Concerns" value={settings.module_visibility?.student?.concerns} onToggle={() => handleModuleToggle('student', 'concerns')} />
+                    <ModuleToggle label="Notices" value={settings.module_visibility?.student?.notices} onToggle={() => handleModuleToggle('student', 'notices')} />
+                    <ModuleToggle label="Feedback" value={settings.module_visibility?.student?.feedback} onToggle={() => handleModuleToggle('student', 'feedback')} />
+                    <ModuleToggle label="Profile" value={settings.module_visibility?.student?.profile} onToggle={() => handleModuleToggle('student', 'profile')} />
+                </View>
+            </View>
+
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
                 {saving ? <ActivityIndicator color="#fff" /> : (
                     <View style={styles.btnContent}><Save size={18} color="#fff" /><Text style={styles.saveBtnText}>Save Settings</Text></View>
@@ -150,10 +216,27 @@ const styles = StyleSheet.create({
     numInput: { backgroundColor: '#f8fafc', width: 60, height: 40, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0', textAlign: 'center', fontWeight: 'bold' },
     infoBox: { flexDirection: 'row', gap: 8, backgroundColor: '#f1f5f9', padding: 12, borderRadius: 10, marginTop: 4 },
     infoText: { flex: 1, fontSize: 11, color: '#64748b' },
-    saveBtn: { backgroundColor: '#6366f1', margin: 20, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+    roleHeader: { fontSize: 13, fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: 12, marginTop: 8 },
+    moduleGrid: { gap: 10 },
+    toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: '#f1f5f9' },
+    toggleLabel: { fontSize: 14, fontWeight: '600', color: '#334155' },
+    divider: { height: 1, backgroundColor: '#e2e8f0' },
+    saveBtn: { backgroundColor: '#6366f1', margin: 20, marginBottom: 40, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
     btnContent: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     saveBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' }
 });
+
+const ModuleToggle = ({ label, value, onToggle }) => (
+    <View style={styles.toggleRow}>
+        <Text style={styles.toggleLabel}>{label}</Text>
+        <Switch
+            value={value !== false}
+            onValueChange={onToggle}
+            trackColor={{ false: '#cbd5e1', true: '#6366f1' }}
+            thumbColor={'#fff'}
+        />
+    </View>
+);
 
 export default AdminSettings;

@@ -165,37 +165,44 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
     );
 };
 
-const StudentTabs = () => (
-    <Tab.Navigator
-        tabBar={(props) => <CustomTabBar {...props} />}
-        screenOptions={{ headerShown: false }}
-    >
-        <Tab.Screen
-            name="DashboardTab"
-            component={StudentDashboard}
-            options={{
-                tabBarLabel: 'Home',
-                tabBarIcon: ({ color }) => <Home size={24} color={color} />
-            }}
-        />
-        <Tab.Screen
-            name="AIChatPlaceholder"
-            component={View} // This will be intercepted
-            options={{
-                tabBarLabel: 'AI Chat',
-                tabBarIcon: ({ color }) => <MessageCircle size={24} color={color} />
-            }}
-        />
-        <Tab.Screen
-            name="ProfileTab"
-            component={StudentProfile}
-            options={{
-                tabBarLabel: 'Profile',
-                tabBarIcon: ({ color }) => <User size={24} color={color} />
-            }}
-        />
-    </Tab.Navigator>
-);
+const StudentTabs = () => {
+    const { collegeSettings } = useAuth();
+    const showProfile = collegeSettings?.module_visibility?.student?.profile !== false;
+
+    return (
+        <Tab.Navigator
+            tabBar={(props) => <CustomTabBar {...props} />}
+            screenOptions={{ headerShown: false }}
+        >
+            <Tab.Screen
+                name="DashboardTab"
+                component={StudentDashboard}
+                options={{
+                    tabBarLabel: 'Home',
+                    tabBarIcon: ({ color }) => <Home size={24} color={color} />
+                }}
+            />
+            <Tab.Screen
+                name="AIChatPlaceholder"
+                component={View} // This will be intercepted
+                options={{
+                    tabBarLabel: 'AI Chat',
+                    tabBarIcon: ({ color }) => <MessageCircle size={24} color={color} />
+                }}
+            />
+            {showProfile && (
+                <Tab.Screen
+                    name="ProfileTab"
+                    component={StudentProfile}
+                    options={{
+                        tabBarLabel: 'Profile',
+                        tabBarIcon: ({ color }) => <User size={24} color={color} />
+                    }}
+                />
+            )}
+        </Tab.Navigator>
+    );
+};
 
 
 

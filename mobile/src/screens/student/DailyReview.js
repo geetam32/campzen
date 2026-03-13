@@ -15,6 +15,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../api/firebase';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import {
     ArrowLeft,
     Calendar,
@@ -27,7 +29,8 @@ import {
     ChevronUp,
     Info,
     Layout,
-    FileText
+    FileText,
+    Download
 } from 'lucide-react-native';
 
 const DailyReview = ({ navigation }) => {
@@ -119,6 +122,20 @@ const DailyReview = ({ navigation }) => {
             month: 'long',
             day: 'numeric'
         });
+    };
+
+    const handleViewPDF = async (mat) => {
+        if (!mat.pdf_url) return;
+        try {
+            const tempFile = `${FileSystem.cacheDirectory}${mat.pdf_name || 'document.pdf'}`;
+            await FileSystem.writeAsStringAsync(tempFile, mat.pdf_url.split(',')[1], {
+                encoding: FileSystem.EncodingType.Base64
+            });
+            await Sharing.shareAsync(tempFile);
+        } catch (error) {
+            console.error("Error opening PDF:", error);
+            Alert.alert("Error", "Could not open PDF.");
+        }
     };
 
     return (
@@ -232,6 +249,16 @@ const DailyReview = ({ navigation }) => {
                                                         {note.image_url ? (
                                                             <Image source={{ uri: note.image_url }} style={styles.materialImage} resizeMode="contain" />
                                                         ) : null}
+                                                        {note.pdf_url ? (
+                                                            <TouchableOpacity
+                                                                style={styles.pdfItem}
+                                                                onPress={() => handleViewPDF(note)}
+                                                            >
+                                                                <FileText size={20} color="#ef4444" />
+                                                                <Text style={styles.pdfItemText} numberOfLines={1}>{note.pdf_name || 'View PDF'}</Text>
+                                                                <Download size={16} color="#6366f1" />
+                                                            </TouchableOpacity>
+                                                        ) : null}
                                                     </View>
                                                 )) : (
                                                     <Text style={styles.noMaterialText}>No notes provided.</Text>
@@ -249,6 +276,16 @@ const DailyReview = ({ navigation }) => {
                                                         {assignment.text ? <Text style={styles.materialText}>{assignment.text}</Text> : null}
                                                         {assignment.image_url ? (
                                                             <Image source={{ uri: assignment.image_url }} style={styles.materialImage} resizeMode="contain" />
+                                                        ) : null}
+                                                        {assignment.pdf_url ? (
+                                                            <TouchableOpacity
+                                                                style={styles.pdfItem}
+                                                                onPress={() => handleViewPDF(assignment)}
+                                                            >
+                                                                <FileText size={20} color="#ef4444" />
+                                                                <Text style={styles.pdfItemText} numberOfLines={1}>{assignment.pdf_name || 'View PDF'}</Text>
+                                                                <Download size={16} color="#6366f1" />
+                                                            </TouchableOpacity>
                                                         ) : null}
                                                     </View>
                                                 )) : (
@@ -502,6 +539,23 @@ const styles = StyleSheet.create({
         height: 150,
         borderRadius: 10,
         backgroundColor: '#fff',
+    },
+    pdfItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        padding: 12,
+        borderRadius: 12,
+        marginTop: 5,
+        gap: 10,
+        borderWidth: 1,
+        borderColor: '#eef2ff',
+    },
+    pdfItemText: {
+        flex: 1,
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#475569',
     },
     noMaterialText: {
         fontSize: 12,

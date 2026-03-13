@@ -14,9 +14,26 @@ export function useAuth() {
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [userData, setUserData] = useState(null);
+    const [collegeSettings, setCollegeSettings] = useState(null);
     const [loading, setLoading] = useState(true);
     // Track if a local (non-Firebase) session is active to prevent onAuthStateChanged from clearing it
     const isLocalSession = useRef(false);
+
+    // Listener for college settings
+    useEffect(() => {
+        let unsub = null;
+        if (userData?.college_id) {
+            const collegeRef = doc(db, 'colleges', userData.college_id);
+            unsub = onSnapshot(collegeRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    setCollegeSettings(docSnap.data().settings || {});
+                }
+            });
+        } else {
+            setCollegeSettings(null);
+        }
+        return () => unsub && unsub();
+    }, [userData?.college_id]);
 
     // Save local session (students/drivers) to AsyncStorage for APK persistence
     const saveLocalSession = async (userObj, userDataObj) => {
@@ -331,7 +348,7 @@ export function AuthProvider({ children }) {
         };
     }, []);
 
-    const value = { user, userData, login, logout, loading };
+    const value = { user, userData, collegeSettings, login, logout, loading };
 
     return (
         <AuthContext.Provider value={value}>

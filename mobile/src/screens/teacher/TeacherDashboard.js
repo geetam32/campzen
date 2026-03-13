@@ -15,7 +15,8 @@ import { Calendar, Clock, FileText, Users, Megaphone, ArrowRight, ClipboardCheck
 import { LinearGradient } from 'expo-linear-gradient';
 
 const TeacherDashboard = ({ navigation }) => {
-    const { userData, logout } = useAuth();
+    const { userData, logout, collegeSettings } = useAuth();
+    const moduleVisibility = collegeSettings?.module_visibility?.staff || {};
     const [stats, setStats] = useState({
         classesToday: 0,
         periodsToday: 0,
@@ -127,7 +128,7 @@ const TeacherDashboard = ({ navigation }) => {
             unsubNotices();
             unsubBadges();
         };
-    }, [userData]);
+    }, [userData, collegeSettings]);
 
     const onRefresh = () => {
         // Live data doesn't strictly need manual refresh
@@ -168,40 +169,50 @@ const TeacherDashboard = ({ navigation }) => {
 
             <View style={styles.dashboardGrid}>
                 {/* Schedule Section */}
-                <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <Text style={styles.cardTitle}>Today's Schedule</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('MyTimetable')}>
-                            <Text style={styles.viewAllBtn}>My Timetable</Text>
-                        </TouchableOpacity>
-                    </View>
-                    {todaySchedule.length === 0 ? (
-                        <Text style={styles.emptyText}>No classes scheduled for today.</Text>
-                    ) : (
-                        <View style={styles.scheduleList}>
-                            {todaySchedule.map((slot, idx) => (
-                                <View key={idx} style={styles.scheduleItem}>
-                                    <View style={styles.periodBadge}>
-                                        <Text style={styles.periodText}>P{slot.period}</Text>
-                                    </View>
-                                    <View style={styles.scheduleDetails}>
-                                        <Text style={styles.subjectText}>{slot.subject}</Text>
-                                        <Text style={styles.classText}>{slot.class_name || 'Assigned Class'}</Text>
-                                    </View>
-                                </View>
-                            ))}
+                {moduleVisibility.schedule !== false && (
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <Text style={styles.cardTitle}>Today's Schedule</Text>
+                            <TouchableOpacity onPress={() => navigation.navigate('MyTimetable')}>
+                                <Text style={styles.viewAllBtn}>My Timetable</Text>
+                            </TouchableOpacity>
                         </View>
-                    )}
-                </View>
+                        {todaySchedule.length === 0 ? (
+                            <Text style={styles.emptyText}>No classes scheduled for today.</Text>
+                        ) : (
+                            <View style={styles.scheduleList}>
+                                {todaySchedule.map((slot, idx) => (
+                                    <View key={idx} style={styles.scheduleItem}>
+                                        <View style={styles.periodBadge}>
+                                            <Text style={styles.periodText}>P{slot.period}</Text>
+                                        </View>
+                                        <View style={styles.scheduleDetails}>
+                                            <Text style={styles.subjectText}>{slot.subject}</Text>
+                                            <Text style={styles.classText}>{slot.class_name || 'Assigned Class'}</Text>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+                    </View>
+                )}
 
                 {/* Quick Shortcuts */}
                 <Text style={styles.sectionTitle}>Quick Actions</Text>
                 <View style={styles.shortcutsRow}>
-                    <ShortcutBtn icon={ClipboardCheck} label="Attendance" color="#6366f1" onPress={() => navigation.navigate('Attendance')} />
-                    <ShortcutBtn icon={FileText} label="Quizzes" color="#10b981" onPress={() => navigation.navigate('Quizzes')} />
-                    <ShortcutBtn icon={BookOpen} label="Materials" color="#f59e0b" onPress={() => navigation.navigate('Materials')} />
-                    <ShortcutBtn icon={Layers} label="My Topics" color="#10b981" onPress={() => navigation.navigate('MyTopics')} />
-                    {userData?.is_class_teacher && (
+                    {moduleVisibility.attendance !== false && (
+                        <ShortcutBtn icon={ClipboardCheck} label="Attendance" color="#6366f1" onPress={() => navigation.navigate('Attendance')} />
+                    )}
+                    {moduleVisibility.learning !== false && (
+                        <>
+                            <ShortcutBtn icon={FileText} label="Quizzes" color="#10b981" onPress={() => navigation.navigate('Quizzes')} />
+                            <ShortcutBtn icon={BookOpen} label="Materials" color="#f59e0b" onPress={() => navigation.navigate('Materials')} />
+                        </>
+                    )}
+                    {moduleVisibility.my_topics !== false && (
+                        <ShortcutBtn icon={Layers} label="My Topics" color="#10b981" onPress={() => navigation.navigate('MyTopics')} />
+                    )}
+                    {(userData?.is_class_teacher && moduleVisibility.student_tracker !== false) && (
                         <ShortcutBtn icon={Users} label="Tracker" color="#ef4444" onPress={() => navigation.navigate('Tracker')} />
                     )}
                 </View>
@@ -261,32 +272,33 @@ const TeacherDashboard = ({ navigation }) => {
                     )}
                 </View>
 
-                {/* Notices Section */}
-                <View style={[styles.card, { marginTop: 24 }]}>
-                    <View style={styles.cardHeader}>
-                        <Text style={styles.cardTitle}>Recent Notices</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('Notices')}>
-                            <Text style={styles.viewAllBtn}>View All</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <View style={styles.noticesList}>
-                        {recentNotices.length === 0 ? (
-                            <Text style={styles.emptyText}>No recent notices.</Text>
-                        ) : (
-                            recentNotices.map((notice, idx) => (
-                                <View key={notice.id} style={styles.noticeItem}>
-                                    <View style={[styles.noticeIconBox, { backgroundColor: notice.type === 'urgent' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)' }]}>
-                                        <Megaphone size={16} color={notice.type === 'urgent' ? '#ef4444' : '#f59e0b'} />
+                {moduleVisibility.notices !== false && (
+                    <View style={[styles.card, { marginTop: 24 }]}>
+                        <View style={styles.cardHeader}>
+                            <Text style={styles.cardTitle}>Recent Notices</Text>
+                            <TouchableOpacity onPress={() => navigation.navigate('Notices')}>
+                                <Text style={styles.viewAllBtn}>View All</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.noticesList}>
+                            {recentNotices.length === 0 ? (
+                                <Text style={styles.emptyText}>No recent notices.</Text>
+                            ) : (
+                                recentNotices.map((notice, idx) => (
+                                    <View key={notice.id} style={styles.noticeItem}>
+                                        <View style={[styles.noticeIconBox, { backgroundColor: notice.type === 'urgent' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)' }]}>
+                                            <Megaphone size={16} color={notice.type === 'urgent' ? '#ef4444' : '#f59e0b'} />
+                                        </View>
+                                        <View style={styles.noticeContent}>
+                                            <Text style={styles.noticeTitle} numberOfLines={1}>{notice.title}</Text>
+                                            <Text style={styles.noticeMeta}>{notice.author_name} • {notice.created_at?.toDate ? notice.created_at.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</Text>
+                                        </View>
                                     </View>
-                                    <View style={styles.noticeContent}>
-                                        <Text style={styles.noticeTitle} numberOfLines={1}>{notice.title}</Text>
-                                        <Text style={styles.noticeMeta}>{notice.author_name} • {notice.created_at?.toDate ? notice.created_at.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</Text>
-                                    </View>
-                                </View>
-                            ))
-                        )}
+                                ))
+                            )}
+                        </View>
                     </View>
-                </View>
+                )}
             </View>
         </ScrollView>
     );

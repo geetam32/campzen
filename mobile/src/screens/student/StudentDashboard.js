@@ -20,7 +20,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 
 const StudentDashboard = ({ navigation }) => {
-    const { userData, logout } = useAuth();
+    const { userData, logout, collegeSettings } = useAuth();
+    const moduleVisibility = collegeSettings?.module_visibility?.student || {};
     const [stats, setStats] = useState({
         materials: 0,
         quizzes: 0,
@@ -106,7 +107,7 @@ const StudentDashboard = ({ navigation }) => {
             unsubUpdates();
             unsubBadges();
         };
-    }, [userData]);
+    }, [userData, collegeSettings]);
 
     const onRefresh = React.useCallback(() => {
         // Data is now real-time, onRefresh is mostly for visual feedback if needed
@@ -188,35 +189,49 @@ const StudentDashboard = ({ navigation }) => {
             {/* Quick Actions */}
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.quickActionsGrid}>
-                <ActionBtn icon={FileText} label="Take Quiz" color={['#6366f1', '#818cf8']} onPress={() => navigation.navigate('StudentQuizzes')} primary />
-                <ActionBtn icon={Download} label="Materials" color={['#10B981', '#34D399']} onPress={() => navigation.navigate('StudentMaterials')} />
-                <ActionBtn icon={Activity} label="Attendance" color={['#10B981', '#34D399']} onPress={() => navigation.navigate('StudentAttendance')} />
-                <ActionBtn icon={AlertTriangle} label="Concern" color={['#EF4444', '#F87171']} onPress={() => navigation.navigate('StudentConcerns')} />
-                <ActionBtn icon={Clock} label="Timetable" color={['#3B82F6', '#60A5FA']} onPress={() => navigation.navigate('StudentTimetable')} />
-                <ActionBtn icon={BookOpen} label="Daily Review" color={['#8B5CF6', '#A78BFA']} onPress={() => navigation.navigate('DailyReview')} />
+                {moduleVisibility.learning !== false && (
+                    <>
+                        <ActionBtn icon={FileText} label="Take Quiz" color={['#6366f1', '#818cf8']} onPress={() => navigation.navigate('StudentQuizzes')} primary />
+                        <ActionBtn icon={Download} label="Materials" color={['#10B981', '#34D399']} onPress={() => navigation.navigate('StudentMaterials')} />
+                    </>
+                )}
+                {moduleVisibility.attendance !== false && (
+                    <ActionBtn icon={Activity} label="Attendance" color={['#10B981', '#34D399']} onPress={() => navigation.navigate('StudentAttendance')} />
+                )}
+                {moduleVisibility.concerns !== false && (
+                    <ActionBtn icon={AlertTriangle} label="Concern" color={['#EF4444', '#F87171']} onPress={() => navigation.navigate('StudentConcerns')} />
+                )}
+                {moduleVisibility.schedule !== false && (
+                    <ActionBtn icon={Clock} label="Timetable" color={['#3B82F6', '#60A5FA']} onPress={() => navigation.navigate('StudentTimetable')} />
+                )}
+                {moduleVisibility.daily_review !== false && (
+                    <ActionBtn icon={BookOpen} label="Daily Review" color={['#8B5CF6', '#A78BFA']} onPress={() => navigation.navigate('DailyReview')} />
+                )}
                 <ActionBtn icon={Bus} label="Track Bus" color={['#6366f1', '#818cf8']} onPress={() => navigation.navigate('BusTracking')} />
 
-                <TouchableOpacity
-                    style={styles.feedbackBanner}
-                    onPress={() => navigation.navigate('StudentFeedback')}
-                    activeOpacity={0.85}
-                >
-                    <LinearGradient
-                        colors={['#F59E0B', '#F97316']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.feedbackGradient}
+                {moduleVisibility.feedback !== false && (
+                    <TouchableOpacity
+                        style={styles.feedbackBanner}
+                        onPress={() => navigation.navigate('StudentFeedback')}
+                        activeOpacity={0.85}
                     >
-                        <View style={styles.feedbackIconBox}>
-                            <Star size={24} color="#fff" fill="#fff" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.feedbackTitle}>Rate Your Teachers</Text>
-                            <Text style={styles.feedbackSubtitle}>Share anonymous feedback & help improve teaching quality</Text>
-                        </View>
-                        <ChevronRight size={20} color="rgba(255,255,255,0.7)" />
-                    </LinearGradient>
-                </TouchableOpacity>
+                        <LinearGradient
+                            colors={['#F59E0B', '#F97316']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.feedbackGradient}
+                        >
+                            <View style={styles.feedbackIconBox}>
+                                <Star size={24} color="#fff" fill="#fff" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.feedbackTitle}>Rate Your Teachers</Text>
+                                <Text style={styles.feedbackSubtitle}>Share anonymous feedback & help improve teaching quality</Text>
+                            </View>
+                            <ChevronRight size={20} color="rgba(255,255,255,0.7)" />
+                        </LinearGradient>
+                    </TouchableOpacity>
+                )}
             </View>
 
             {/* Achievements Section */}
@@ -294,25 +309,26 @@ const StudentDashboard = ({ navigation }) => {
                 )}
             </View>
 
-            {/* Updates Section */}
-            <View style={[styles.card, { marginTop: 28 }]}>
-                <View style={styles.cardHeader}>
-                    <View style={styles.cardTitleBox}>
-                        <Bell size={18} color="#1e293b" />
-                        <Text style={styles.cardTitle}>Recent Updates</Text>
+            {moduleVisibility.notices !== false && (
+                <View style={[styles.card, { marginTop: 28 }]}>
+                    <View style={styles.cardHeader}>
+                        <View style={styles.cardTitleBox}>
+                            <Bell size={18} color="#1e293b" />
+                            <Text style={styles.cardTitle}>Recent Updates</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => navigation.navigate('NoticeBoard')}><Text style={styles.viewAllBtn}>View All</Text></TouchableOpacity>
                     </View>
-                    <TouchableOpacity onPress={() => navigation.navigate('NoticeBoard')}><Text style={styles.viewAllBtn}>View All</Text></TouchableOpacity>
+                    <View style={styles.updatesList}>
+                        {recentUpdates.length === 0 ? (
+                            <Text style={styles.emptyText}>No recent updates</Text>
+                        ) : (
+                            recentUpdates.map(update => (
+                                <UpdateItem key={update.id} update={update} navigation={navigation} />
+                            ))
+                        )}
+                    </View>
                 </View>
-                <View style={styles.updatesList}>
-                    {recentUpdates.length === 0 ? (
-                        <Text style={styles.emptyText}>No recent updates</Text>
-                    ) : (
-                        recentUpdates.map(update => (
-                            <UpdateItem key={update.id} update={update} navigation={navigation} />
-                        ))
-                    )}
-                </View>
-            </View>
+            )}
         </ScrollView>
     );
 };
